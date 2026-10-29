@@ -1,0 +1,20 @@
+{"event_id": "evt-001", "order_id": null, "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:00:00-03:00", "type": "RESTAURANT_CAPACITY_UPDATED", "data": {"max_concurrent_orders": 3, "active_preparations": 1}}
+{"event_id": "evt-002", "order_id": "ord-1001", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:01:00-03:00", "type": "ORDER_CREATED", "data": {"promised_ready_at": "2026-10-29T18:20:00-03:00", "promised_delivery_at": "2026-10-29T18:48:00-03:00"}}
+{"event_id": "evt-003", "order_id": "ord-1001", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:03:00-03:00", "type": "KITCHEN_STARTED", "data": {}}
+{"event_id": "evt-004", "order_id": "ord-1002", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:04:00-03:00", "type": "ORDER_CREATED", "data": {"promised_ready_at": "2026-10-29T18:23:00-03:00", "promised_delivery_at": "2026-10-29T18:52:00-03:00"}}
+{"event_id": "evt-005", "order_id": "ord-1003", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:06:00-03:00", "type": "ORDER_CREATED", "data": {"promised_ready_at": "2026-10-29T18:25:00-03:00", "promised_delivery_at": "2026-10-29T18:56:00-03:00"}}
+{"event_id": "evt-006", "order_id": "ord-1002", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:08:00-03:00", "type": "KITCHEN_STARTED", "data": {}}
+{"event_id": "evt-007", "order_id": null, "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:09:00-03:00", "type": "PROMOTION_STARTED", "data": {"promotion_id": "promo-demo-01", "source": "simulator"}}
+{"event_id": "evt-008", "order_id": null, "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:10:00-03:00", "type": "RESTAURANT_CAPACITY_UPDATED", "data": {"max_concurrent_orders": 3, "active_preparations": 6}}
+{"event_id": "evt-009", "order_id": "ord-1003", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:11:00-03:00", "type": "KITCHEN_STARTED", "data": {}}
+{"event_id": "evt-010", "order_id": "ord-1001", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:12:00-03:00", "type": "COURIER_ASSIGNED", "data": {}}
+{"event_id": "evt-011", "order_id": "ord-1002", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:14:00-03:00", "type": "COURIER_ASSIGNED", "data": {}}
+{"event_id": "evt-012", "order_id": "ord-1001", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:18:00-03:00", "type": "KITCHEN_READY", "data": {}}
+{"event_id": "evt-013", "order_id": "ord-1001", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:20:00-03:00", "type": "COURIER_ARRIVED", "data": {}}
+{"event_id": "evt-014", "order_id": "ord-1001", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:21:00-03:00", "type": "PICKED_UP", "data": {}}
+{"event_id": "evt-015", "order_id": "ord-1002", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:22:00-03:00", "type": "COURIER_ARRIVED", "data": {}}
+{"event_id": "evt-016", "order_id": "ord-1003", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:27:00-03:00", "type": "ORDER_CANCELLED", "data": {"reason_reported": "customer_requested", "reason_verified": false}}
+{"event_id": "evt-017", "order_id": "ord-1002", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:34:00-03:00", "type": "KITCHEN_READY", "data": {}}
+{"event_id": "evt-018", "order_id": "ord-1002", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:35:00-03:00", "type": "PICKED_UP", "data": {}}
+{"event_id": "evt-019", "order_id": "ord-1001", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T18:43:00-03:00", "type": "DELIVERED", "data": {}}
+{"event_id": "evt-020", "order_id": "ord-1002", "restaurant_id": "rest-01", "occurred_at": "2026-10-29T19:05:00-03:00", "type": "DELIVERED", "data": {}}

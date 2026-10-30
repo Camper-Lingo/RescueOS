@@ -1,12 +1,12 @@
 # Handoff / estado do projeto
 
-**Estado atual:** Etapa 1 aprovada; Etapa 2 implementada, aguardando revisão independente.
+**Estado atual:** Etapas 1 e 2 aprovadas; correção da Code Review #003 implementada, aguardando revisão independente.
 
-**Próxima tarefa:** revisão independente do Event Replay Engine e políticas do ADR-005. Aguardar aprovação antes de ampliar o escopo.
+**Próxima tarefa:** revisão independente do Metrics & Evidence Engine e políticas do ADR-006. Aguardar aprovação antes de ampliar o escopo.
 
 **Evidências disponíveis:** PRD, arquitetura, gabarito das fixtures e decisões.
 
-**Não concluído:** métricas, exportadores finais, dashboard, n8n, agente, MCP, deploy e medições reais.
+**Não concluído:** exportadores finais, dashboard, n8n, agente, MCP, deploy e medições reais.
 
 **Arquivos criados:** `rescueos/__init__.py`, `rescueos/contracts.py`,
 `rescueos/ingest.py`, `tests/__init__.py`, `tests/test_ingest.py`.
@@ -135,3 +135,85 @@ tests/test_ingest.py tests/test_numeric_ingest.py` confirmou que fixtures e Etap
 permanecem intactas. Reproduções originais agora retornam DELIVERED/INCOMPLETE
 com conflito associado, e ambas as violações pós-terminal/restaurante.
 Diff incremental desta correção disponível em `out/review002.diff` para revisão.
+
+## Etapa 3 — Metrics & Evidence Engine — 2026-10-29
+
+Antes de editar: diretório e raiz Git `D:\rescueos_starter`, estado Git limpo.
+Lidos AGENTS/PRD/ARCHITECTURE/DECISIONS/HANDOFF, fixtures e gabarito; inspecionadas
+as interfaces reais de contratos, ingestão e replay. Baseline executado:
+`python -B -m unittest discover -s tests -v` — 81 testes aprovados.
+
+Criados `rescueos/metrics.py` e `tests/test_metrics.py`. Atualizados README,
+DECISIONS (ADR-006) e este handoff. Sem mudanças nas interfaces anteriores.
+
+Contrato: `compute_metrics(ReplayResult) -> MetricsResult`; cinco métricas por pedido
+com Fraction exato, fontes por campo, IDs de apoio, motivos e qualidade local.
+Agregados com elegibilidade, exclusões, critérios e taxas com numerador/denominador.
+Pedidos órfãos ou conhecidos só por diagnósticos não viram pedidos artificiais.
+Históricos parcialmente confiáveis são avaliados por dependência, propagando os
+metadados de resolução e evidência originais do pedido.
+
+Executado `python -B -m unittest tests.test_metrics -v` — 33 testes aprovados,
+incluindo gabarito, segundos/microssegundos, offsets, virada de dia, ausência de
+eventos, espera negativa, cancelamento, ambiguidade, conflitos, denominadores,
+lineage e determinismo. Nenhum teste anterior alterado.
+
+Pendências de revisão: políticas de dependência transitiva, contagens elegíveis e
+denominadores do snapshot, e representação Fraction em futuros exportadores.
+Limites: memória local, entrada íntegra do replay, avaliação conservadora de
+conflitos por tipo, sem estimativa para pedidos desconhecidos em linhas ilegíveis.
+Sem instalação, commit, push, frontend, APIs, agentes, ML ou exportadores finais.
+
+Validação completa executada: `python -B -m unittest discover -s tests -v` —
+114 testes aprovados (81 anteriores + 33 novos), Python 3.14.4. Demonstração real
+confirmou valores individuais do gabarito; agregados 3 criados, 2 entregues,
+1 cancelado, 1 atrasado, 1 no prazo; taxas exatas 1/2 e 1/3.
+Lineage ord-1002: entrega evt-004/evt-020; cozinha evt-004/evt-017;
+espera evt-015/evt-018, com campos, timestamps e números de linha preservados.
+
+`git diff --check` e checks dos dois arquivos novos passaram.
+`git diff --exit-code -- fixtures/ rescueos/contracts.py rescueos/ingest.py
+rescueos/replay.py tests/test_ingest.py tests/test_numeric_ingest.py tests/test_replay.py`
+confirmou fixtures, interfaces e testes anteriores sem mudanças.
+Diff completo da Etapa 3 para revisão em `out/stage3-review.diff`.
+
+## Correção da Code Review #003 — 2026-10-29
+
+Retomada sem reiniciar a implementação: raiz Git D:/rescueos_starter; mudanças
+anteriores em README, DECISIONS e HANDOFF, com metrics.py e test_metrics.py ainda
+untracked. Já existiam dois testes de regressão criados antes da interrupção.
+Antes da correção ambos falharam: esperado NOT_DELIVERED, obtidos respectivamente
+INCONSISTENT_DEPENDENCY e CONFLICTING_DEPENDENCY. A execução foi registrada com
+`python -B -m unittest tests.test_metrics.Review003RegressionTests -v`.
+
+Correção restrita à classificação das populações: verificar criação, identidade
+e desfecho antes da cadeia de entrega. Cancelados confiáveis ficam fora da
+população como NOT_DELIVERED, preservando problemas locais. Criação ou terminais
+comprometidos continuam bloqueando a classificação; entregues continuam exigindo
+cadeia íntegra e desvio disponível. Nenhuma alteração na aritmética individual.
+
+ADR-006 documenta COMPLETE/PARTIAL nos agregados, separados da disponibilidade.
+Denominador conhecido vazio mantém valor None e ZERO_DENOMINATOR, sem inventar
+taxa zero; sua qualidade pode ser COMPLETE. Métricas individuais mantêm o contrato
+anterior, inclusive SUFFICIENT e evidências de inconsistências/conflitos.
+
+Adicionados dez testes ao todo (duas regressões e oito verificações adicionais).
+`python -B -m unittest tests.test_metrics -v`: 43 testes aprovados.
+`python -B -m unittest discover -s tests -v`: 124 testes aprovados, incluindo os
+114 anteriores. Cobertura adicional: criação/terminais comprometidos, ambas as
+cronologias contraditórias, cadeia de entrega inconsistente, população só cancelada,
+população mista, frações exatas, evidências e dez embaralhamentos determinísticos.
+
+`git diff --check` passou. Fixtures, módulos e testes das Etapas 1/2 permanecem
+intactos em relação ao Git. README preexistente foi preservado. Sem dependências,
+commit, push ou avanço à Etapa 4. Pendente revisão independente da classificação
+e da distinção entre qualidade da população e disponibilidade da taxa. Permanecem
+os limites de snapshot em memória e avaliação conservadora dos conflitos por tipo.
+
+Comparação adicional em memória com o código anterior à correção: métricas
+individuais completas (incluindo fontes e diagnósticos) e valores/numeradores/
+denominadores dos agregados idênticos em sete snapshots, incluindo a fixture.
+Os 33 testes originais de métricas foram comparados textualmente e preservados.
+Exemplos reais: entregue + cancelado com conflito de entregador => taxa 1/1,
+COMPLETE, exclusão NOT_DELIVERED. Acrescentar desfecho de outro pedido comprometido
+=> mesma taxa observada 1/1, PARTIAL, exclusão CONFLICTING_DEPENDENCY adicional.

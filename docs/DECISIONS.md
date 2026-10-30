@@ -227,3 +227,134 @@ a um terminal aplicado recebe tanto `RESTAURANT_MISMATCH` quanto
 Limites: a associação usa os IDs de pedido informados pela ingestão, sem inferir
 vínculos de erros sem `affected_order_ids`. As políticas existentes para eventos
 anteriores à criação e a persistência em memória não foram alteradas nesta correção.
+
+## ADR-006 — Métricas exatas, dependências e denominadores (Etapa 3)
+
+**Interface:** `compute_metrics(ReplayResult) -> MetricsResult` em
+`rescueos/metrics.py`. Recebe o resultado íntegro do replay, sem refatorar as
+Etapas 1/2, executar textos ou reinterpretar eventos rejeitados. Não há I/O,
+exportador, janela temporal, predição ou inferência de responsabilidade.
+
+### Aritmética e contrato
+
+Timestamps originais com offset são preservados; a subtração de datetimes aware
+compara instantes UTC. Diferenças são convertidas de microssegundos inteiros
+para `Fraction(microseconds, 60_000_000)`, sem truncar ou arredondar minutos.
+Valores individuais e taxas são `fractions.Fraction`, contagens são `int` e
+indisponibilidade usa `None`. `available` deriva de `value is not None`.
+Zero é um resultado válido. Taxas têm unidade `ratio`, de 0 a 1; 1/2 equivale
+a 50%, e 1/3 permanece exato. Uma apresentação decimal futura precisará declarar
+seu arredondamento; Fraction não é serializado diretamente pelo JSON padrão.
+
+Cada `Metric` contém nome, valor, unidade, motivo da indisponibilidade, fórmula,
+fontes (`event_id`, tipo, campo, timestamp original e origens), IDs de apoio da
+cadeia aplicada, qualidade das dependências e metadados originais de integridade
+do pedido. Conflitos/questões relevantes permanecem acessíveis separadamente.
+Os dados de entrada são copiados, sem mutação ou compartilhamento de dicionários.
+O resultado contém dicionários mutáveis, como o replay.
+
+### Cálculos e dependências
+
+Selecionar somente marcos presentes em `applied_event_ids`, preservando as
+escolhas do replay. Não procurar uma alternativa rejeitada para completar tempos.
+
+| Métrica | Fontes aritméticas | Dependências de validade |
+|---|---|---|
+| delivery_deviation | Entrega menos prazo de entrega, em minutos | Criação, preparo, entregador, coleta, entrega e classificação terminal |
+| delivery_delay | max(0, delivery_deviation) | As mesmas de delivery_deviation |
+| delivery_earliness | max(0, -delivery_deviation) | As mesmas de delivery_deviation |
+| kitchen_delay | max(0, cozinha pronta menos prazo de preparo) | Criação, início e finalização da cozinha |
+| courier_waiting_time | Coleta menos chegada do entregador | Criação, preparo, atribuição/chegada do entregador e coleta |
+
+A cadeia transitiva de pré-requisitos do replay integra a avaliação de validade,
+mesmo quando apenas dois timestamps entram na subtração. Atraso de entrega exige
+estado DELIVERED confiável. Cancelados e pedidos ainda não entregues não recebem
+atraso zero por ausência de entrega. Cozinha/espera podem permanecer disponíveis
+em um cancelado se seus marcos anteriores foram aplicados e são confiáveis.
+Espera negativa é indisponível; não aplicar max(0, espera) para ocultar o problema.
+
+Conflitos são relevantes por interseção de `affected_event_types` com as
+dependências. Incompatibilidade de criações ou divergência de restaurante bloqueia
+todas as métricas do pedido. Contradição entre terminais bloqueia entrega e
+classificação do desfecho; não apaga fatos anteriores de cozinha/coleta.
+Nos demais problemas do replay, avaliar o evento problemático, não a criação ou
+terminal citados apenas como âncora de contexto. Marcos repetidos e pré-requisitos
+ausentes relevantes bloqueiam as dependências; criações redundantes compatíveis
+mantêm os valores calculáveis a partir da criação aplicada.
+
+Qualidade local: `SUFFICIENT`, `AMBIGUOUS`, `INCONSISTENT`, `INCOMPLETE`,
+`INSUFFICIENT` ou `NOT_APPLICABLE`. As três últimas distinguem conflito conhecido,
+fonte ausente e ausência de entrega. `reason` identifica o impedimento; `conflicts`
+e `issues` preservam todas as causas relevantes mesmo quando há uma causa prioritária.
+`order_resolution` e `order_evidence_quality` continuam visíveis, inclusive quando
+uma métrica local é calculável em pedido globalmente INCONSISTENT/INCOMPLETE/AMBIGUOUS.
+SUFFICIENT se refere às dependências verificadas, não à completude universal.
+
+### Agregados e populações
+
+Todas as contagens referem-se a pedidos distintos elegíveis no snapshot completo
+do replay. Contagens de populações vazias valem zero; taxas com denominador zero
+são indisponíveis (`ZERO_DENOMINATOR`).
+
+| Agregado | Inclusão |
+|---|---|
+| total_created | Criação aplicada, sem ambiguidade de identidade ou conflito/problema relevante de criação |
+| total_delivered | Estado DELIVERED, cadeia aplicada e classificação terminal confiáveis |
+| total_cancelled | Estado CANCELLED, criação e classificação terminal confiáveis |
+| total_late_deliveries | Entregues com desvio disponível e desvio > 0 |
+| total_on_time_deliveries | Entregues com desvio disponível e desvio <= 0 |
+| delay_rate | Numerador: entregas atrasadas elegíveis; denominador: entregas com desvio disponível |
+| cancellation_rate | Numerador: cancelados elegíveis; denominador: criados com classificação atual confiável, inclusive não terminais |
+
+A taxa de cancelamento é do snapshot, não uma previsão do resultado final dos
+pedidos abertos. Criação inequívoca pode contar em total_created mesmo quando o
+desfecho é ambíguo; esse pedido fica excluído do denominador da taxa de cancelamento.
+O denominador não deve ser substituído automaticamente por total_created.
+
+Cada agregado registra critérios, fórmula, IDs incluídos, exclusões com motivo e
+referências `(order_id, event_id)` aos eventos de apoio no ReplayResult. Taxas
+registram também numerador/denominador e seus IDs. Nas contagens por sinal de desvio,
+as referências abrangem a população avaliada, incluindo entregas que não satisfazem
+o sinal, para permitir reproduzir a classificação.
+
+Na classificação das populações de entrega, primeiro verificar criação aplicada,
+identidade e desfecho com as dependências ORDER_CREATED, DELIVERED e ORDER_CANCELLED.
+Conflitos ou inconsistências relevantes nessa etapa impedem classificar o pedido
+como simplesmente não entregue, mesmo quando o estado aceito seja CANCELLED.
+Com classificação confiável, um estado diferente de DELIVERED recebe NOT_DELIVERED;
+somente para entregues avaliar a cadeia transitiva e, para taxas/contagens por atraso,
+a disponibilidade do desvio. Problemas independentes de entregador em cancelados
+não comprometem a população de entregas. Pedidos abertos são não entregues no
+snapshot atual; isso não prevê seu desfecho futuro.
+
+Essa classificação não altera métricas individuais: suas dependências, motivos,
+conflitos, inconsistências e qualidade original do pedido continuam preservados.
+Os IDs de apoio de uma exclusão normal referem-se à criação e ao desfecho aplicado.
+
+Nos agregados, `COMPLETE` substitui SUFFICIENT para indicar classificação sem
+incertezas relevantes conhecidas no snapshot, sem garantir completude universal.
+`PARTIAL` sinaliza exclusões por incerteza; filtros normais de classe, como
+NOT_DELIVERED para um cancelado confiável, não tornam a população parcial.
+Disponibilidade e qualidade são independentes: uma população conhecida vazia pode
+ser COMPLETE com taxa None, ZERO_DENOMINATOR e numerador/denominador 0/0; exclusões
+incertas mantêm PARTIAL mesmo sem denominador. A qualidade local das métricas
+individuais permanece com o vocabulário anterior, incluindo SUFFICIENT.
+Zero de uma população parcial é contagem elegível observada, não prova de que
+nenhum pedido real/sintético tenha ocorrido. Não converter parcialidade em ganho.
+
+Históricos órfãos e IDs conhecidos apenas por diagnósticos ficam em
+`excluded_histories`, com ORDER_NOT_CREATED ou NO_ACCEPTED_HISTORY, e nas exclusões
+dos agregados. Não criam objetos OrderMetrics nem entram nos denominadores.
+`diagnostic_order_ids` e `ingestion_errors` mantêm os vínculos que não possuem
+histórico aceito. Erros sem ID de pedido identificável não permitem enumerar os
+pedidos desconhecidos; os diagnósticos globais continuam disponíveis.
+
+### Determinismo e limites para revisão
+
+A igualdade ignora origens de linha e conteúdo de auditoria dos conflitos/erros,
+que variam com reordenação e reenvios; fontes, valores, fórmulas, qualidade,
+eventos de apoio e exclusões participam da comparação. Sem relógio ou aleatoriedade.
+Políticas de dependência e denominadores deste ADR precisam de revisão funcional.
+A avaliação de conflitos é por tipo de evento, conservadora: não libera uma métrica
+porque duas variantes rejeitadas parecem compartilhar o mesmo campo numérico.
+Escopo local em memória; sem métricas causais, financeiras, exportadores ou serviços.

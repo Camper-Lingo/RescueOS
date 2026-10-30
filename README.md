@@ -154,3 +154,24 @@ Saída da API: `orders` (pedidos criados), `orphan_histories` (históricos sem c
 Etapa 1) e `inconsistencies` (visão conjunta das inconsistências de replay).
 Um pedido ambíguo usa `status=None`, `resolution='AMBIGUOUS'`. Eventos rejeitados
 pela ingestão não entram nas timelines. Não há cálculos de atraso nesta etapa.
+
+## Etapa 3 — Metrics & Evidence Engine
+
+`compute_metrics(ReplayResult)` calcula cinco métricas por pedido, contagens e taxas
+com elegibilidade explícita. Valores em minutos e taxas usam `Fraction` da biblioteca
+padrão, mantendo precisão exata. Fontes incluem IDs, campos, timestamps e origens.
+Disponibilidade é avaliada por dependência; consulte as políticas do ADR-006.
+
+No PowerShell, a partir da raiz do repositório:
+
+```powershell
+python -B -m unittest tests.test_metrics -v
+python -B -m unittest discover -s tests -v
+python -B -c "from rescueos.ingest import read_jsonl; from rescueos.replay import replay; from rescueos.metrics import compute_metrics; r = compute_metrics(replay(read_jsonl('fixtures/demo_events.jsonl'))); print({k: str(a.value) for k, a in r.aggregates.items()}); print(r.orders['ord-1002'].metrics['delivery_delay'])"
+```
+
+O comando inspeciona resultados em memória. `available=False` usa `value=None`,
+com motivo explícito. Não converta indisponibilidade em zero. Leia resolução,
+qualidade local e qualidade do pedido junto do valor. Agregados registram IDs
+excluídos, motivos, numerador, denominador e critérios. Dados são sintéticos.
+Não há exportadores finais; serialização JSON de Fraction exigirá decisão futura.

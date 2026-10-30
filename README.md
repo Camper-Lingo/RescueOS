@@ -45,3 +45,84 @@ Não criar frontend, agentes, MCP, API ou n8n nesta primeira missão. Não usar 
 ## Limites importantes
 
 Projeto independente e não afiliado ao iFood. Não utiliza dados reais, credenciais, marcas em interfaces como se fosse oficial, nem APIs internas da empresa. Nenhuma estimativa de impacto é apresentada como resultado operacional real.
+
+## Fase 0 — etapa 1 implementada
+
+Somente ingestão local: leitura JSONL, contrato v0.1, timestamps com offset,
+deduplicação e conflitos. Replay, estados, métricas e exportadores aguardam revisão.
+Python 3.11 ou superior, somente biblioteca padrão; validado com Python 3.14.4.
+
+No PowerShell, a partir da raiz do repositório:
+
+```powershell
+Set-Location D:\rescueos_starter
+python -m unittest discover -s tests -v
+python -c "from rescueos.ingest import read_jsonl; r = read_jsonl('fixtures/demo_events.jsonl'); print('aceitos:', len(r.events), 'erros:', len(r.errors), 'grupos duplicados:', len(r.duplicates))"
+```
+
+A segunda chamada inspeciona a ingestão e não grava arquivos. A fixture atual
+contém 20 eventos válidos. A API `read_jsonl(path)` retorna:
+
+- `events`: eventos válidos únicos, em ordem de ID, sem replay temporal;
+- `origins_by_id`: arquivo, linha e texto original de cada ocorrência identificável;
+- `errors`: erros de leitura de linha, validação e conflitos;
+- `duplicates`: diagnóstico de grupos de reenvios idênticos válidos.
+
+Somente `events` alimentará o negócio. Duplicatas podem alterar diagnósticos e
+origens, mas não esse conjunto. Estados, métricas e relatórios futuros deverão
+usar `events`, sem incluir contagens de duplicatas em resultados de negócio.
+Esta etapa testa a igualdade dessa entrada; ainda não testa relatórios inexistentes.
+
+Mesmo ID com qualquer conteúdo divergente gera `EVENT_ID_CONFLICT` e exclui
+todas as variantes, incluindo uma variante válida que conflite com outra inválida.
+O erro guarda todas as origens, pedidos e tipos afetados e avisa sobre possíveis
+lacunas em métricas dependentes. Nenhuma métrica é calculada nesta etapa.
+
+### Exemplos de ingestão
+
+Evento válido:
+
+```json
+{"event_id":"evt-example","order_id":"ord-example","restaurant_id":"rest-01","occurred_at":"2026-10-29T18:01:00-03:00","type":"KITCHEN_STARTED","data":{}}
+```
+
+Duplicado: uma segunda linha idêntica à anterior, inclusive com as propriedades
+em outra ordem ou espaços diferentes. Resultado: um evento aceito e diagnóstico
+`DUPLICATE_EVENT`, com ambas as origens.
+
+Conflitante, quando recebido junto do válido acima:
+
+```json
+{"event_id":"evt-example","order_id":"ord-example","restaurant_id":"rest-01","occurred_at":"2026-10-29T18:02:00-03:00","type":"KITCHEN_STARTED","data":{}}
+```
+
+Resultado: nenhum evento desse ID aceito; `EVENT_ID_CONFLICT` preserva as duas linhas.
+
+Inválido, por ausência de offset:
+
+```json
+{"event_id":"evt-invalid","order_id":"ord-example","restaurant_id":"rest-01","occurred_at":"2026-10-29T18:01:00","type":"KITCHEN_STARTED","data":{}}
+```
+
+Resultado: rejeição com `INVALID_TIMESTAMP`; outras linhas continuam sendo lidas.
+
+### Limites do leitor
+
+O processamento agrupa o arquivo completo em memória, sem deduplicação persistente
+entre chamadas. Erros de abertura/leitura do arquivo propagam `OSError`; linhas
+inválidas ficam em `errors`. Linhas vazias, BOM, chaves JSON repetidas, números não
+finitos e UTF-8 inválido são rejeitados explicitamente. Texto recebido nunca é executado.
+Detalhes do contrato e da identidade estão em `docs/DECISIONS.md`.
+
+Após a correção da Code Review #001, JSON malformado gera `INVALID_JSON`;
+números JSON fora dos limites locais geram `INVALID_NUMBER`, preservando o ID
+identificável para análise de conflitos. A leitura continua após essas linhas.
+Limites: literal de até 128 caracteres, inteiros signed int64, coeficiente decimal
+de até 100 dígitos e expoente explícito de -308 a 308, sem overflow ou underflow
+para zero na conversão float. Consulte ADR-004 para detalhes e limitações.
+
+Regressões numéricas específicas:
+
+```powershell
+python -B -m unittest tests.test_numeric_ingest -v
+```

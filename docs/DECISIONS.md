@@ -1,5 +1,97 @@
 # Registro de decisões (ADRs simples)
 
+## ADR-008 — Etapa 5A: snapshot HTTP e projeção temporal 3D
+
+**Data:** 2026-10-30. Implementado, aguardando revisão independente.
+
+**Escopo autorizado:** FastAPI somente leitura e React/TypeScript/Vite/Three/Fiber/
+Drei; instalação local explicitamente autorizada em `.venv` e `frontend/node_modules`.
+As restrições do MVP 0 continuam aplicáveis ao núcleo/CLI, que não mudou nem passou
+a depender da stack web. Não há agentes, MCP, n8n, dados reais, ações ou deploy.
+
+**Fonte de verdade:** um snapshot da fixture sintética, carregado no lifespan.
+Reutilizar ingestão, replay, métricas e serializer públicos; nunca chamar o writer
+da Etapa 4. Payloads serializados em mapping imutável, cópias por resposta e modelos
+Pydantic com campos extras proibidos. Sete recursos GET em `/api/v1`; pedido
+inexistente retorna 404. Metadados schema 1.0/snapshot_id/demo_mode/synthetic em
+todas as respostas. Cliente verifica identidade e versão das respostas combinadas.
+
+**Tempo:** ordenar aceitos por instante UTC e event_id; reconstruir cada prefixo
+com o núcleo. A fixture gera 21 quadros para 20 eventos, incluindo quadro inicial
+vazio. Auditoria/conflitos do arquivo completo continuam conhecidos em todos os
+quadros; não reinserir variantes excluídas nem tratar a navegação como ingestão
+online. Eventos de capacidade/promoção continuam contexto. A cena usa os marcos
+aplicados do quadro atual, não o flag descritivo final `applied_to_order` do catálogo.
+
+**Exatidão:** no HTTP, numerator/denominator de Fraction e intervalos em
+microssegundos são strings decimais. BigInt no cliente preserva racionais sem float;
+None continua null, nunca zero. O serializer JSON da CLI não mudou. O cursor visual
+comprime 1 segundo real em 5 minutos simulados a 1× (2×/4× disponíveis), arredonda
+somente incrementos de relógio visual e escolhe quadros fornecidos pela API.
+Empates completos durante play; navegação por evento permite inspecioná-los um a um.
+Não calcular atrasos, transições ou responsabilidade no frontend.
+
+**Evidências e segurança:** IDs, tipos, campos, horários originais com offset,
+origens/linhas/hash preservados. Expor só basename da origem; sem payload bruto,
+caminhos arbitrários, upload ou execução do texto de evento. Snapshot_id inclui
+conteúdo/auditoria: embaralhar linhas mantém projeção semântica, mas pode mudar
+origens físicas e identidade. COMPLETE continua limitado ao universo conhecido.
+
+**Representação:** diorama e cinco mascotes originais procedurais, sem assets
+remotos. Cores/legendas separam estado, evidência e métrica. Estado ambíguo não
+recebe conclusão definitiva; evidência incompleta fica explícita. Um Runner
+representa chegada/coleta aplicada do pedido selecionado. Loops decorativos usam
+relógio local e fases fixas; não são ações nem fatos. Redução de movimento e modo
+2D mantêm os mesmos dados/controles. Seleção de pedidos/mascotes também em HTML.
+
+**Limites:** carregamento/payload de todos os prefixos é quadrático, aceitável
+somente para a fixture pequena; sem streaming, paginação ou entradas externas.
+Snapshot por processo, sem atualização distribuída, autenticação de produção ou
+concorrência de publicação. API não modifica relatórios. Garantias do ADR-007
+permanecem: atomicidade individual, sem transação do conjunto e sem concorrência.
+Antes de escritores simultâneos, aprovar lock/coordenador e gerações imutáveis
+com ponteiro/manifesto transacional e recuperação testada.
+
+**Validação:** testes HTTP/modelos/cópias/determinismo/qualidade/None/racionais,
+testes de cursor/projeção/cliente, build strict e navegador real Chrome/Windows.
+WebGL dos testes usa SwiftShader; sem garantia de FPS ou homologação de outras
+GPUs/browsers. Roteiro, versões e resultados em CONTROL_TOWER.md e HANDOFF.md.
+
+### Correção da Code Review #005 — 2026-10-30
+
+O cliente valida o JSON recebido em runtime antes de aceitar um Bundle: campos,
+estados, disponibilidade, fontes/origens, racionais, sequência e referências de
+quadros e projeção final entre endpoints. Aritmética e transições continuam no
+núcleo. Contagens exigem inteiros seguros no browser; racionais continuam BigInt.
+Dados inválidos viram erro recuperável com retry. Barreira de renderização geral
+é contenção adicional, não substitui o contrato.
+
+A Error Boundary da cena passa a envolver a importação lazy e sua subárvore.
+Falhas de download/renderização deixam os painéis e o replay no fallback 2D com
+o mesmo snapshot/cursor. A tentativa de recarregar a cena é uma recarga explícita
+da página: reinicia a sessão visual e evita prometer retry de uma importação
+rejeitada já armazenada pelo React.lazy. Não inventar dados no fallback.
+
+“Visão geral” usa contador monotônico de reset: restaura posição, target,
+orientação e zoom padrão por viewport, mesmo quando focus já é null. Interpolação
+normal com inércia suspensa durante o comando; movimento reduzido aplica o destino
+imediatamente. A órbita manual pode interromper a transição.
+
+Adicionar `/api/v1/order`, consulta por exatamente um parâmetro: `order_id` ou
+`order_id_json` (string JSON). Ausente/ambíguo/malformado retorna 422; desconhecido,
+404. `loadOrder` usa JSON.stringify + URLSearchParams, incluindo surrogates isolados
+que não são escalares Unicode válidos numa URL UTF-8. Preservar a rota legada,
+agora com conversor path; usar query para evitar normalização de caminhos/proxies.
+
+Resposta JSON explicitamente escapada em ASCII (`ensure_ascii=True`, sem NaN),
+com response_model ativo. No FastAPI instalado, isso desativa o dump_json direto
+do Pydantic que lançava UnicodeEncodeError antes da criação da resposta. Lifespan
+valida tanto os modelos quanto sua serialização, inclusive pedidos individuais.
+Nenhum ID é normalizado/substituído. Versão 1.0 e valores semânticos preservados;
+bytes HTTP passam a escapar Unicode. Consumidores que só aceitam escalares Unicode
+podem rejeitar surrogates; a limitação e o transporte lossless estão documentados.
+CLI e contratos das Etapas 1–4 permanecem intactos.
+
 ## ADR-001 — Um único produto com três módulos
 **Decisão:** combinar SurgeShield, RescueOps e FairTrace em torno de um único log de eventos.
 **Motivo:** facilita rastrear causas propostas, decisões e resultados sem duplicar dados.

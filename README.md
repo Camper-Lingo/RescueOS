@@ -1,5 +1,37 @@
 # RescueOS — Delivery Intelligence Control Tower
 
+## Etapa 5A — The Living Restaurant
+
+A Control Tower local está implementada para revisão independente: restaurante 3D
+procedural, cinco mascotes originais, pedidos selecionáveis, replay temporal e
+painel de evidências ligados a uma API FastAPI somente leitura. Todos os dados são
+sintéticos; não há execução de agentes ou ações operacionais.
+
+Com as dependências já instaladas e autorizadas, abra dois terminais PowerShell:
+
+```powershell
+# Terminal 1 — raiz do repositório
+Set-Location D:\rescueos_starter
+.\.venv\Scripts\python.exe -B -m uvicorn rescueos.tower.api:app --host 127.0.0.1 --port 8000
+```
+
+```powershell
+# Terminal 2
+Set-Location D:\rescueos_starter\frontend
+npm.cmd run dev
+```
+
+Abra **http://127.0.0.1:5173/**. Selecione `ord-1002`, abra as evidências e use
+reiniciar/reproduzir ou arraste a timeline. O primeiro carregamento mostra o
+snapshot final pausado. `?view=2d` abre a alternativa acessível sem a cena 3D.
+Use Ctrl+C em cada terminal para encerrar. Os serviços escutam somente em loopback.
+
+Guia completo, versões, instalação reproduzível, testes, screenshots e limitações:
+[`docs/CONTROL_TOWER.md`](docs/CONTROL_TOWER.md). Decisões no ADR-008 de
+[`docs/DECISIONS.md`](docs/DECISIONS.md). Os comandos históricos do MVP 0 abaixo
+continuam descrevendo o núcleo/CLI sem dependências; para descobrir **todos** os
+testes agora, use o Python da `.venv`, que inclui FastAPI e HTTPX.
+
 **Predict → Rescue → Explain.** Projeto educacional independente, com eventos totalmente simulados, para praticar AI Building, engenharia de workflows e avaliação de agentes.
 
 ## Visão

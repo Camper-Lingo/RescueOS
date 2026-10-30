@@ -1,12 +1,12 @@
 # Handoff / estado do projeto
 
-**Estado atual:** Etapas 1 a 3 aprovadas; correção da Code Review #004 implementada, aguardando revisão independente.
+**Estado atual:** Etapas 1–4 preservadas; cinco correções da Code Review #005 e compatibilidade de whitespace dos IDs implementadas, aguardando revisão independente (2026-10-30).
 
-**Próxima tarefa:** revisão independente de Reporting & CLI, schema e publicação do ADR-007. Aguardar aprovação antes de ampliar o escopo.
+**Próxima tarefa:** revisão independente da Etapa 5A e ADR-008. Não ampliar o escopo nem fazer commit sem a revisão do usuário.
 
 **Evidências disponíveis:** PRD, arquitetura, gabarito das fixtures e decisões.
 
-**Não concluído:** dashboard, API HTTP, n8n, agente, MCP, deploy e medições reais.
+**Não concluído:** n8n, agentes, MCP, deploy e medições de operações reais. API local e interface 3D demonstrativa descritas no registro da Etapa 5A abaixo.
 
 **Arquivos criados:** `rescueos/__init__.py`, `rescueos/contracts.py`,
 `rescueos/ingest.py`, `tests/__init__.py`, `tests/test_ingest.py`.
@@ -318,3 +318,272 @@ preexistente preservado. Diff incremental da correção em out/review004.diff.
 Sem dependências, commit, push ou avanço de escopo. Aguardar revisão independente
 da recuperação de erros e tratamento dos streams. Permanecem limites de memória,
 atomicidade por arquivo e ausência de proteção para escritores concorrentes.
+
+## Etapa 5A — The Living Restaurant — 2026-10-30
+
+Estado: implementada para revisão independente. Não fazer commit/push nem avançar
+o escopo automaticamente. Guia: `docs/CONTROL_TOWER.md`; decisão: ADR-008.
+
+Preparação inicial: diretório e raiz Git D:/rescueos_starter, árvore limpa; lidos
+AGENTS, README, PRD, ARCHITECTURE, DECISIONS, HANDOFF, fixture/gabarito e interfaces
+públicas. Não havia Control Tower parcial. Baseline real: 176 testes Python,
+175 aprovados, 1 skip de symlink por WinError 1314.
+
+Retomada após interrupção: já existiam a stack local, API/snapshot/modelos,
+13 testes API aprovados, cena procedural e componentes iniciais da interface,
+timeline e evidências. Todos foram preservados e inspecionados. O handoff antigo
+ainda descrevia a revisão da Etapa 4; este registro documenta o trabalho da 5A.
+O primeiro build da retomada falhou por import não usado; os indicadores HTML
+também usavam nomes diferentes do contrato real. Corrigidos sem tocar no núcleo.
+
+Instalação explicitamente autorizada pelo usuário: FastAPI/Uvicorn/HTTPX na
+`.venv`, React/DOM/Three/Fiber/Drei/Vite/TypeScript/Playwright e tipos em
+`frontend/node_modules`. A primeira tentativa pip foi rejeitada pela aprovação
+automática antes dessa autorização; o usuário autorizou e a instalação local
+posterior concluiu. Usado npm.cmd, sem alterar ExecutionPolicy. Versões diretas
+e transitivas Python em requirements-tower.txt; frontend em package-lock.json.
+
+Backend novo em `rescueos/tower/`: seis GETs versionados, lifespan com snapshot
+serializado imutável, cópias por resposta e modelos explícitos. Reutiliza as
+Etapas 1–4 em memória; não publica relatórios. Replay com 20 eventos/21 quadros,
+ordenado por instante UTC/ID. Auditoria completa é conhecida em todos os quadros;
+variantes conflitantes nunca são reinseridas. Fraction vira strings de inteiros
+no contrato HTTP; null preservado. Não mudou o JSON da CLI.
+
+Frontend novo em `frontend/`: cena isométrica procedural com cozinha/fogão/coifa,
+retirada/prateleiras/portal, estação de evidências, console e decoração; cinco
+mascotes originais Scout/Fixer/Trace/Runner/Coordinator, idle e deslocamentos via
+refs; pacotes por estado aplicado. Seleção por cena e HTML, foco de câmera,
+replay play/pause/restart/anterior/próximo/slider/1×/2×/4×, painel de evidências,
+indicadores, diagnóstico, modos 3D/2D e redução de movimento. Movimentos decorativos
+e papéis futuros são explicitamente identificados; nenhuma IA executa ações.
+
+Validação visual real em Chrome/Windows, com SwiftShader no headless. Corrigidos
+cortes de câmera, rótulos sobrepostos e sobreposição de textos na vista 2D móvel.
+Rótulos Html do Drei causavam avisos de desmontagem do React; substituídos por
+CanvasTexture local com descarte no unmount. API online, 3D visível, clique direto
+em pacote, seleção dos três pedidos, cinco personagens, replay completo, retorno
+para evt-015 sem métricas futuras e evidências reais conferidos. Primeira asserção
+de timestamp no E2E usava horário errado; corrigida para o registro original
+18:22 de evt-015 após comparar a fixture e a resposta real, sem alterar dados.
+
+Comandos/resultados finais executados:
+
+- `.\.venv\Scripts\python.exe -B -m unittest tests.test_tower_api -v`: 13/13.
+- `.\.venv\Scripts\python.exe -B -m unittest discover -s tests -v`: 189 casos,
+  188 aprovados, 0 falhas, 1 skip. Os 176 anteriores continuam presentes; symlink
+  real ainda requer privilégio Windows. Guard por mock/hardlink passaram.
+- `npm.cmd test` em frontend: 12/12, cliente HTTP/cursor/racionais/projeção visual.
+- `npm.cmd exec tsc -- --noEmit`: exit 0, strict incluindo testes.
+- `npm.cmd run build`: exit 0; chunk HTML/cliente 244,80 kB e cena lazy 949,43 kB
+  (77,05 e 252,73 kB gzip), CSS 18,93 kB. Sem certificação de FPS.
+- `npm.cmd run test:e2e`: 8/8, 25,4 s na execução final. API real + 3D + console sem erros no fluxo
+  normal; clique Canvas/HTML, métricas e fontes, replay completo/backward/pause,
+  ausência e perda de WebGL, loading/offline/HTTP/retry, viewport 390, preferência
+  reduzida, ID inexistente, vazio e evidência ambígua/incompleta. Falhas/estados
+  excepcionais do cliente usam interceptação de rede explicitamente nos testes.
+- Sondagem independente de modelos HTTP com conflito, órfãos e terminais
+  contraditórios, precedidos por número de expoente extremo: quatro recursos
+  responderam 200 em cada caso, mantendo INCOMPLETE/AMBIGUOUS/ausência de pedidos.
+- `git diff --check` e verificação de whitespace dos arquivos novos: passaram.
+  `git diff --exit-code` confirmou fixtures e módulos/testes das Etapas 1–4 intactos.
+  `pip check`: nenhum requisito quebrado. CSS foi formatado para revisão; o build
+  confirmou a formatação sem mudança de artefatos. O ajuste visual final de rolagem
+  do painel de evidências no desktop também passou pelo build e navegador.
+
+Resultados reais da fixture: 3 criados, 2 entregues, 1 cancelado, 1 atrasado,
+taxas exatas 1/2 e 1/3. ord-1001: antecedência 5/espera 1; ord-1002: atraso 13,
+cozinha 11/espera 13; ord-1003: métricas de entrega indisponíveis. Fontes da espera
+ord-1002: evt-015 (18:22, linha 15) e evt-018 (18:35, linha 18).
+
+Screenshots locais ignorados pelo Git: `out/tower-desktop.png`,
+`out/tower-evidence.png`, `out/tower-mobile-3d.png`, `out/tower-mobile-2d.png`.
+Reproduzíveis pelo E2E; imagens inspecionadas visualmente. Diff consolidado com
+arquivos novos em `out/stage5a-review.diff`, sem staging/commit.
+
+Limites para revisão: fixture pequena/snapshot estático por processo; prefixos
+completos quadráticos; auditoria estática nos quadros; um Runner para o pedido
+selecionado; rótulos em ângulos extremos; somente Chrome/Windows validado, sem
+garantias de FPS ou auditoria completa de acessibilidade. Starlette avisa que seu
+adaptador TestClient com HTTPX está depreciado; testes passaram sem ocultar aviso.
+Sem deploy, autenticação de produção, streaming, IA ou mudanças na publicação.
+Antes de concorrência, aprovar coordenação/lock e publicação de gerações imutáveis
+com manifesto transacional/recuperação; continuam os limites do ADR-007.
+
+## Correção da Code Review #005 — 2026-10-30
+
+Estado: cinco correções implementadas, aguardando revisão independente. Não fazer
+commit/push nem avançar à Etapa 5B. Trabalho existente preservado, incluindo todos
+os arquivos não rastreados; raiz Git confirmada como D:/rescueos_starter. Baseline
+completo guardado em `out/review005-before.zip`; diff incremental em
+`out/review005.diff`, sem staging. Não houve instalação ou alteração de versões.
+
+Lidos AGENTS, HANDOFF, CONTROL_TOWER, ADR-008 e contratos/componentes relevantes.
+Baseline reexecutado antes de corrigir: 189 testes Python (188 passaram/1 skip),
+12 Node, 8 Playwright; TypeScript e build passaram. Skip existente por WinError 1314
+em symlink real; sem alterar privilégios Windows.
+
+RED antes de implementar:
+
+- `.\.venv\Scripts\python.exe -B -m unittest tests.test_tower_review005 -v`:
+  dois testes de regressão falharam, com cinco asserções: consulta individual por
+  query retornava 404; surrogate aceito pelo núcleo gerava 500 em overview,
+  orders, diagnostics e replay, enquanto health permanecia 200.
+- `npm.cmd run test:e2e -- e2e/review005.spec.ts`: os quatro testes iniciais falharam
+  (orders ausente, denominador zero, lazy import abortado, reset da câmera). Nos
+  três primeiros, faltavam retry/fallback; o último não recuperava a imagem inicial.
+
+GREEN e decisões:
+
+1. JSON HTTP permanece unknown até validação runtime de metadados, estruturas,
+   estados, métricas/disponibilidade, frações, fontes/origens e quadros. Verificar
+   referências aos prefixos e projeções finais entre endpoints sem recalcular
+   regras de negócio. Payload inválido não vira Bundle; erro recuperável com retry.
+   Error Boundary geral contém falhas inesperadas de renderização.
+2. Barreira da cena externa ao React.lazy protege importação e subárvore 3D. Falha
+   mantém HTML/evidências/replay e vista 2D com os mesmos dados. Botão de recarga
+   da cena recarrega a página explicitamente, reiniciando a sessão visual.
+3. Reset monotônico restaura posição, target, orientação e zoom por viewport,
+   mesmo com focus=null. Movimento reduzido imediato, normal suave com inércia
+   suspensa durante o comando. Usuário pode interromper pela órbita manual.
+4. Nova query GET `/api/v1/order`, com exatamente um de order_id/order_id_json.
+   JSON-string transporta também unidades UTF-16 isoladas sem perda na URL.
+   loadOrder usa JSON.stringify + URLSearchParams e valida a resposta individual.
+   Rota de caminho mantida com conversor path; query é preferida diante de proxies.
+5. EscapedJSONResponse explícita mantém response_model e usa JSON ASCII escapado,
+   sem NaN. Evita o dump_json direto do Pydantic que falhava antes da criação da
+   resposta. Lifespan verifica schema e serialização, inclusive pedidos individuais.
+   Nenhum ID é normalizado ou substituído. Schema HTTP 1.0 e JSON da CLI preservados.
+
+Os mesmos dois testes HTTP e quatro testes iniciais de navegador passaram após
+as correções. Ampliados com arrays/tipos inválidos, frações incompletas, fontes,
+estados/disponibilidade, recuperação, falha de renderização 3D/HTML, recarga da
+cena, consulta pelo cliente real e comparação visual do reset. Servidor HTTP Node
+real testa contratos/respostas inválidas e transporte de IDs sem casts forçados
+para Bundle. IDs cobertos: normal, barra, ?, #, espaços, Unicode, emoji, caracteres
+combinados e surrogate isolado; inválidos controlados em 422, inexistentes em 404.
+
+Dois mocks antigos precisaram ficar completos/coerentes: o helper do cliente
+omitia campos obrigatórios; o E2E de ambiguidade alterava apenas replay, deixando
+orders divergente. Suas asserções foram preservadas; respostas de teste passaram
+a cumprir o contrato, incluindo metadados locais das métricas. Nenhum teste foi
+removido. Uma execução intermediária deu 19/20: o teste HTML procurava um nó de
+texto solto por igualdade de elemento; ajustado o locator para o painel que
+efetivamente continha “render recuperado”, sem alterar o comportamento da aplicação.
+
+Verificação final executada:
+
+- `.\.venv\Scripts\python.exe -B -m unittest tests.test_tower_review005 -v`: 5/5.
+- `.\.venv\Scripts\python.exe -B -m unittest discover -s tests -v`: 194 casos,
+  193 aprovados, 0 falhas, 1 skip existente; os 189 anteriores preservados.
+- `npm.cmd test`: 14/14, incluindo 2 novos testes com múltiplos casos HTTP reais.
+- `npm.cmd exec tsc -- --noEmit`: exit 0, strict.
+- `npm.cmd run build`: exit 0, sem dependências novas.
+- `npm.cmd run test:e2e`: 21/21 em 51,3 s na última execução (8 anteriores + 13 novos).
+
+Chrome/Windows real com SwiftShader: restaurante e cinco mascotes mantidos,
+seleção Canvas/HTML, replay completo, retorno temporal e fontes ord-1002 conferidos.
+Screenshots regeneradas pelo E2E em out/tower-*.png; fallback após erro em
+`out/review005-scene-fallback.png`. Imagens inspecionadas visualmente. Sondagem
+adicional leu a câmera real via store R3F, com movimento normal: após órbita/zoom e
+reset, posição voltou a [10,11,12], target [0,0,0], mesmo quaternion inicial e zoom
+47.37864077669903 no viewport 1440×1080. Teste reduzido compara PNGs idênticos após
+reset repetido, foco de zona e navegação no replay. Sem certificação de FPS/GPU.
+
+Fixture mantém 20 eventos/21 quadros/3 pedidos, dois entregues e um cancelado;
+ord-1002 com atraso 13/cozinha 11/espera 13, taxas 1/2 e 1/3, null preservado.
+Fixtures, módulos/testes das Etapas 1–4, modelos procedurais, versões e lockfile
+comparados byte a byte com o baseline e preservados. API local foi reiniciada para
+carregar o adaptador corrigido. Diff/check e whitespace dos arquivos novos
+conferidos antes da entrega, incluindo os não rastreados.
+
+Integração adicional com respostas HTTP reais do TestClient alimentando o
+validador TypeScript via Node: fixture, conflito com campos vazios em variante
+inválida, histórico ambíguo, órfãos, duplicatas e surrogate. Todos aceitos pelo
+validador, preservando diagnósticos; cada arquivo também começava com JSON
+malformado, sem impedir a continuidade. Identificadores aceitos são não vazios;
+strings inválidas das variantes rejeitadas continuam permitidas nos diagnósticos.
+
+Limitações: consumidores Unicode estritos podem rejeitar surrogate isolado; Python
+e JavaScript preservam sua representação JSON, mas fontes podem mostrar glifo de
+substituição. Query JSON evita perda de identidade; não normalizar Unicode.
+Validação de frontend deve acompanhar alterações futuras do contrato. Recarga da
+cena reinicia o cursor. Mantidos snapshot pequeno/estático, prefixos quadráticos,
+skip de symlink, depreciação HTTPX/TestClient e limites de publicação do ADR-007.
+Pendente revisão independente dos cinco fixes, runtime validator e políticas de
+transporte/serialização, sem exigir novas funcionalidades ou produção nesta etapa.
+
+Revisão de simplicidade solicitada pelo usuário: skill Ponytail 5.3.3 encontrada
+em `C:/Users/João/.codex/plugins/cache/ponytail/ponytail/5.3.3/skills/ponytail/SKILL.md`,
+lida e ativada em FULL. Inspecionados os cinco fixes, seus chamadores e testes.
+Mantidos os validadores locais compartilhados na fronteira HTTP, uma Error
+Boundary reutilizada nos dois escopos, o contador de reset e o serializador da
+biblioteca padrão. Não foi encontrada simplificação que justificasse outra
+alteração de código; não houve refatoração apenas para reduzir linhas. As
+verificações entre endpoints protegem a coerência dos dados exibidos sem duplicar
+o motor de negócio. Nenhuma dependência, fábrica de componentes ou novo sistema
+de estado foi introduzido pelas correções.
+
+Inspeção visual final confirmou desktop, mobile 3D, evidências e fallback 2D do
+mesmo quadro. Mantidos cena, cinco mascotes, animações e replay; modelos,
+estilos e roster permanecem idênticos ao baseline. O diff incremental compara
+bytes para identificar arquivos alterados e normaliza CRLF/LF somente para
+apresentar as linhas, evitando incluir arquivos intactos por conversão de newline.
+
+## Correção final #005 — identificadores Python/TypeScript — 2026-10-30
+
+Raiz Git D:/rescueos_starter confirmada; alterações e arquivos não rastreados
+preservados. Ponytail 5.3.3 carregado em FULL, sem hooks ou dependências novas.
+Baseline dos 65 arquivos em `out/review005-identifiers-before.zip`; diff desta
+correção em `out/review005-identifiers.diff`. Não fazer commit/push nem iniciar 5B.
+
+Causa: `String.trim()` removia U+FEFF aceito por `str.strip()` no núcleo e deixava
+passar U+001C–001F/U+0085, que o núcleo rejeita quando isolados. Substituído somente
+o predicado compartilhado de identificadores em validation.ts por uma classe
+explícita de caracteres fora dos 29 whitespaces Python 3.14/Unicode 16. Zero
+transformações dos valores: sem trim, normalização, remoção ou substituição.
+loadBundle e loadOrder reutilizam a correção; núcleo, API e componentes não mudaram.
+
+Antes da correção, executado:
+`.\.venv\Scripts\python.exe -B -m unittest tests.test_tower_review005.Review005IdentifierCompatibilityTests -v`
+— quatro testes, quatro falhas: três campos com U+FEFF e divergências de whitespace
+frente ao validate_event real. A primeira execução também expôs um assert libuv
+no encerramento do Node/Windows após erro não tratado do teste. O runner passou a
+capturar o erro e sinalizar exitCode=1; reexecutado RED com as mesmas quatro falhas
+de contrato, sem o erro secundário, antes de alterar o produto. Após a correção,
+o mesmo comando passou com quatro testes em 2,144 s.
+
+Três testes exercitam dez IDs válidos por campo em JSONL temporário, ingestão e
+API real via TestClient; respostas alimentam um servidor HTTP Node e os clientes
+reais loadBundle/loadOrder. Incluem U+FEFF puro/cercado por whitespace, barra,
+Unicode comum, emoji, combinados, surrogate isolado, U+180E/U+200B e espaços em
+volta de conteúdo. Testam também payload inválido seguido de recuperação. O quarto
+teste enumera os whitespaces do Python instalado e compara 177 casos (59 valores
+por campo, incluindo vizinhos e strings vazias/mistas) ao validate_event real.
+Verifica que a validação não modifica os dados. Testes anteriores preservados.
+
+Validação geral executada:
+
+- `.\.venv\Scripts\python.exe -B -m unittest discover -s tests -v`: 198 casos,
+  197 aprovados, zero falhas, um skip existente; 26,577 s.
+- `npm.cmd test`: 14/14.
+- `npm.cmd exec tsc -- --noEmit`: exit 0.
+- `npm.cmd run build`: exit 0.
+- `npm.cmd run test:e2e`: 21/21, 1,2 min na execução final.
+- `git diff --check` e whitespace dos arquivos alterados: sem erros.
+
+Sondagem adicional Chrome/Windows com API Uvicorn temporária real: os três IDs
+iguais a U+FEFF foram preservados; resposta inválida exibiu retry, e resposta válida
+subsequente carregou restaurante 3D. Consulta individual pelo cliente retornou o
+mesmo ID; null preservado e nenhum pageerror. Screenshot inspecionada em
+`out/review005-identifiers.png`. A fixture oficial continua com 20 eventos,
+21 quadros, três pedidos e métricas 13/11/13 de ord-1002; E2E preserva cinco
+mascotes, animações, seleção, câmera, fallback, evidências e navegação temporal.
+
+Somente validation.ts, test_tower_review005.py, CONTROL_TOWER.md e HANDOFF.md
+alterados nesta correção. Demais fontes comparadas byte a byte com o baseline;
+fixtures, módulos/testes das Etapas 1–4, personagens, estilos e lockfile intactos.
+Limites: tabela deve acompanhar mudanças futuras no whitespace Python/Unicode;
+IDs invisíveis continuam visualmente invisíveis, sem perda de identidade. Mantidos
+skip de symlink Windows, aviso de depreciação TestClient/HTTPX e validação gráfica
+por SwiftShader. Aguardando revisão independente, sem novas funcionalidades.

@@ -91,3 +91,139 @@ rejeitadas com diagnósticos por ocorrência, sem `DUPLICATE_EVENT` de evento ac
 
 Os limites numéricos não limitam tamanho de linha/arquivo, quantidade de registros
 ou volume total de texto; o consumo de memória permanece uma limitação real.
+
+## ADR-005 — Replay v0.1 e estados observados
+
+**Decisão da Etapa 2:** `replay(IngestResult)` consome somente `events` aceitos,
+sem repetir validação, conversão numérica ou deduplicação da Etapa 1. A entrada
+deve ser o resultado íntegro da ingestão; construir/modificar manualmente esse
+objeto está fora do contrato. Erros da ingestão são mantidos em `ingestion_errors`,
+com associação de conflitos a históricos existentes por `affected_order_ids`.
+Não reinserir eventos rejeitados nem criar pedidos apenas a partir de diagnósticos.
+
+Ordenação global pelo instante UTC de `occurred_at`, depois `event_id` (ordem
+lexicográfica). A implementação usa diferença aware para uma época UTC, com
+precisão de microssegundos, sem depender de timezone da máquina nem converter
+para float. Isso também admite datas nos extremos do calendário aceito pela
+ingestão sem overflow na normalização. Os timestamps originais são preservados.
+
+### Transições adotadas
+
+A documentação inicial definia terminais, mas não a matriz intermediária completa.
+Este ADR explicita a política conservadora da implementação, sujeita à revisão.
+`status` é o último estado aplicado com evidência, não uma estimativa do que ocorreu
+em etapas sem eventos. Não sintetizar marcos, horários nem motivos.
+
+| Evento | Pré-requisitos observados e aplicados | Efeito em status |
+|---|---|---|
+| ORDER_CREATED | Primeira criação na ordem determinística | CREATED |
+| KITCHEN_STARTED | Criação anterior | PREPARING |
+| KITCHEN_READY | Criação e KITCHEN_STARTED | READY |
+| COURIER_ASSIGNED | Criação anterior | Mantém status |
+| COURIER_ARRIVED | Criação e COURIER_ASSIGNED | Mantém status |
+| PICKED_UP | Criação, KITCHEN_READY e COURIER_ARRIVED | PICKED_UP |
+| DELIVERED | Criação e PICKED_UP | DELIVERED, terminal |
+| ORDER_CANCELLED | Criação, em qualquer fase não terminal | CANCELLED, terminal |
+
+Preparo e chegada do entregador são progressos independentes: a chegada pode
+anteceder a comida pronta. Atrasos de chegada na entrada não importam; a ordem
+aplicada é a dos eventos. Um marco sem pré-requisito gera `MISSING_PREREQUISITE`
+e fica na timeline sem alterar o estado, inclusive uma entrega sem coleta.
+Não corrigir retroativamente esse marco quando um pré-requisito ocorrer depois
+na cronologia. Um novo evento posterior pode satisfazer as transições.
+
+### Integridade e ambiguidade
+
+- Sem nenhuma criação aceita: preservar timeline em `orphan_histories` e registrar
+  `ORDER_NOT_CREATED` por evento; não inserir pedido em `orders`.
+- Com criação posterior: eventos anteriores geram `EVENT_BEFORE_CREATION` e não
+  alteram o estado. Em timestamps empatados, o desempate por ID também se aplica
+  à precedência da criação; não pressupor simultaneidade causal.
+- Criações com IDs distintos: comparar restaurante, instante de criação e os dois
+  prazos (normalizados por instante UTC). Igualdade desses campos gera
+  `MULTIPLE_CREATIONS`; aplicar só a primeira. Diferença gera
+  `INCOMPATIBLE_CREATIONS` e ambiguidade. Campos adicionais de criação são
+  preservados, mas não definem compatibilidade nem alteram prazos.
+- Restaurante diferente da primeira criação: `RESTAURANT_MISMATCH`, ignorar o
+  evento na redução e marcar ambiguidade. `restaurant_id` projetado fica `None`
+  quando há mais de um restaurante no histórico; manter os valores nas evidências.
+- Marco já aplicado, com outro ID: `REPEATED_MILESTONE`; não regredir o estado nem
+  substituir o primeiro timestamp. Reenvios do mesmo ID já foram tratados na ingestão.
+- Qualquer evento de pedido posterior a um terminal aplicado gera
+  `EVENT_AFTER_TERMINAL`; fica na timeline, mas não altera o estado.
+- Afirmações de entrega e cancelamento posteriores à criação de referência, no
+  mesmo restaurante, geram `CONFLICTING_TERMINALS` e ambiguidade, mesmo se uma
+  afirmação não puder ser aplicada por falta de pré-requisito. Não escolher o
+  último terminal nem inferir estorno, reabertura ou causa.
+
+`resolution` é metadado de integridade, separado de `status`:
+
+- `CONSISTENT`: nenhuma inconsistência observada; não garante histórico completo.
+- `INCOMPLETE`: sequência aceita consistente, mas há exclusões conhecidas por
+  conflitos associados ao pedido. Preservar `status` e seus IDs de evidência,
+  qualificando a confiabilidade da conclusão.
+- `INCONSISTENT`: histórico contém eventos não aplicados ou marcos redundantes,
+  mas conserva um último estado inequívoco sob as regras acima.
+- `AMBIGUOUS`: `status=None` e `status_event_ids=()`; não publicar um vencedor.
+  `applied_event_ids` preserva a redução de referência para auditoria, não resolve
+  a ambiguidade nem autoriza métricas baseadas em um suposto estado final.
+
+### Evidências e contexto
+
+Cada timeline contém todos os eventos de pedido aceitos, inclusive incoerentes.
+`Evidence` preserva o objeto original e todas as origens de ingestão; cada
+inconsistência referencia essas evidências. `applied_event_ids` distingue os
+eventos aplicados; `status_event_ids` identifica o marco do último estado inequívoco.
+O resultado é uma cópia dos eventos: não modifica nem compartilha dicionários
+com a ingestão. Os dicionários do resultado continuam mutáveis pelo chamador.
+
+Capacidade e promoção são classificados por tipo em `operational_context`,
+ordenados globalmente e com origens, inclusive quando trazem `order_id` preenchido.
+Não participam da máquina de estados nem criam pedidos. Não inferir causalidade
+entre esses eventos e atrasos/cancelamentos.
+
+A igualdade das projeções exclui origens e `ingestion_errors`, pois linhas e
+diagnósticos variam com reordenação e reenvios. Essa auditoria permanece acessível;
+não prometer igualdade byte a byte de objetos que incluam essas informações.
+Não há cálculo de métricas, exportação, efeitos externos ou estado persistido.
+
+### Correção da Code Review #002 — estado e qualidade separados
+
+`status`, `status_event_ids` e `applied_event_ids` continuam derivados exclusivamente
+dos eventos aceitos. A integridade passa a incorporar exclusões conhecidas:
+
+- `evidence_quality='NO_LINKED_CONFLICTS'`: não há conflito de ingestão associado
+  ao pedido. Não afirma que o histórico esteja completo nem que toda evidência
+  seja válida. Outros erros da ingestão continuam disponíveis globalmente.
+- `evidence_quality='INCOMPLETE'`: há conflito associado ao pedido; também usado
+  em históricos órfãos, que não possuem criação aceita.
+- `ingestion_conflicts`: diagnósticos `EVENT_ID_CONFLICT` originais, associados
+  por todos os `affected_order_ids`, ordenados por `event_id`. Preservam IDs,
+  tipos afetados, arquivo, linha e texto original de todas as variantes, com seus
+  timestamps. Não converter os textos rejeitados novamente em eventos de replay.
+
+`resolution` resume os dois aspectos, com prioridade
+`AMBIGUOUS > INCONSISTENT > INCOMPLETE > CONSISTENT`. Um conflito não transforma
+uma sequência aceita em transição inválida nem em terminal contraditório.
+Assim, uma entrega aceita pode permanecer `status='DELIVERED'`, mas sua conclusão
+fica qualificada por `resolution='INCOMPLETE'`. Se a sequência já era inconsistente
+ou ambígua, essa classificação permanece, junto de `evidence_quality='INCOMPLETE'`.
+
+`inconsistencies` continua descrevendo apenas problemas de replay da sequência
+aceita; conflitos ficam separadamente em `ingestion_conflicts`. Consumidores devem
+consultar resolução e qualidade, não apenas a contagem de inconsistências.
+Se não houver eventos aceitos para formar sequer um histórico, manter o conflito
+em `ReplayResult.ingestion_errors`, sem criar pedido ou histórico artificial.
+Históricos órfãos existentes também recebem seus conflitos associados.
+
+A igualdade ignora o conteúdo de auditoria de `ingestion_conflicts`, cujas origens
+variam com reordenação e reenvios. `evidence_quality` e a resolução qualificada
+participam da igualdade; exclusões conhecidas não ficam ocultas na projeção.
+
+Violações simultâneas são cumulativas: um evento de outro restaurante posterior
+a um terminal aplicado recebe tanto `RESTAURANT_MISMATCH` quanto
+`EVENT_AFTER_TERMINAL` antes de ser ignorado. Não aplicar o evento ao estado.
+
+Limites: a associação usa os IDs de pedido informados pela ingestão, sem inferir
+vínculos de erros sem `affected_order_ids`. As políticas existentes para eventos
+anteriores à criação e a persistência em memória não foram alteradas nesta correção.

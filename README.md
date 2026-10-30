@@ -49,7 +49,8 @@ Projeto independente e não afiliado ao iFood. Não utiliza dados reais, credenc
 ## Fase 0 — etapa 1 implementada
 
 Somente ingestão local: leitura JSONL, contrato v0.1, timestamps com offset,
-deduplicação e conflitos. Replay, estados, métricas e exportadores aguardam revisão.
+deduplicação e conflitos. Replay e estados da Etapa 2 implementados, aguardando
+revisão independente. Métricas e exportadores permanecem pendentes.
 Python 3.11 ou superior, somente biblioteca padrão; validado com Python 3.14.4.
 
 No PowerShell, a partir da raiz do repositório:
@@ -126,3 +127,30 @@ Regressões numéricas específicas:
 ```powershell
 python -B -m unittest tests.test_numeric_ingest -v
 ```
+
+## Etapa 2 — Event Replay Engine
+
+O motor recebe a saída da ingestão e reconstrói timelines e o último estado
+aplicável, preservando evidências de inconsistências. Preparo e chegada do
+entregador são acompanhados independentemente. As transições e políticas de
+ambiguidade estão no ADR-005 em `docs/DECISIONS.md`.
+
+Execute na raiz do repositório, no PowerShell:
+
+```powershell
+python -B -m unittest tests.test_replay -v
+python -B -m unittest discover -s tests -v
+python -B -c "from rescueos.ingest import read_jsonl; from rescueos.replay import replay; r = replay(read_jsonl('fixtures/demo_events.jsonl')); print([(k, v.status, v.resolution) for k, v in r.orders.items()]); print('inconsistencias:', len(r.inconsistencies))"
+```
+
+Para inspecionar a timeline de `ord-1002`, sem gerar arquivos:
+
+```powershell
+python -B -c "from rescueos.ingest import read_jsonl; from rescueos.replay import replay; r = replay(read_jsonl('fixtures/demo_events.jsonl')); print([(e.event['event_id'], e.event['occurred_at'], e.event['type']) for e in r.orders['ord-1002'].timeline])"
+```
+
+Saída da API: `orders` (pedidos criados), `orphan_histories` (históricos sem criação),
+`operational_context` (capacidade/promoção), `ingestion_errors` (diagnósticos da
+Etapa 1) e `inconsistencies` (visão conjunta das inconsistências de replay).
+Um pedido ambíguo usa `status=None`, `resolution='AMBIGUOUS'`. Eventos rejeitados
+pela ingestão não entram nas timelines. Não há cálculos de atraso nesta etapa.

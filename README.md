@@ -48,9 +48,9 @@ Projeto independente e não afiliado ao iFood. Não utiliza dados reais, credenc
 
 ## Fase 0 — etapa 1 implementada
 
-Somente ingestão local: leitura JSONL, contrato v0.1, timestamps com offset,
-deduplicação e conflitos. Replay e estados da Etapa 2 implementados, aguardando
-revisão independente. Métricas e exportadores permanecem pendentes.
+Ingestão local: leitura JSONL, contrato v0.1, timestamps com offset,
+deduplicação e conflitos. Etapas 1 a 3 aprovadas; Reporting & CLI da Etapa 4
+implementados e aguardando revisão independente. Veja o comando completo abaixo.
 Python 3.11 ou superior, somente biblioteca padrão; validado com Python 3.14.4.
 
 No PowerShell, a partir da raiz do repositório:
@@ -174,4 +174,48 @@ O comando inspeciona resultados em memória. `available=False` usa `value=None`,
 com motivo explícito. Não converta indisponibilidade em zero. Leia resolução,
 qualidade local e qualidade do pedido junto do valor. Agregados registram IDs
 excluídos, motivos, numerador, denominador e critérios. Dados são sintéticos.
-Não há exportadores finais; serialização JSON de Fraction exigirá decisão futura.
+A Etapa 4 abaixo implementa os exportadores e define a serialização no ADR-007.
+
+## Etapa 4 — Reporting & CLI
+
+O MVP executável integra ingestão, replay e métricas sem alterar suas interfaces.
+No Windows PowerShell, com Python 3.11 ou superior e apenas biblioteca padrão:
+
+```powershell
+Set-Location D:\rescueos_starter
+python -B -m rescueos --input fixtures/demo_events.jsonl --output-dir out
+python -B -m rescueos --help
+python -B -m unittest tests.test_reporting tests.test_cli -v
+python -B -m unittest discover -s tests -v
+```
+
+Saídas: `out/summary.json` (dados estruturados), `out/report.md` (leitura humana)
+e `out/errors.json` (diagnósticos e origens físicas). O contrato versionado está
+no ADR-007 de `docs/DECISIONS.md`. Uma fração é representada por
+`{"numerator": 1, "denominator": 3}`; indisponibilidade permanece `null` com motivo,
+e nunca vira zero. COMPLETE/PARTIAL qualificam a população, não a disponibilidade.
+
+Na fixture: 3 criados, 2 entregues, 1 cancelado, 1 entrega atrasada e 1 no prazo;
+taxa de atraso 1/2 e de cancelamento 1/3. Dados e resultados são sintéticos.
+
+Códigos de saída: **0** significa relatórios publicados, inclusive quando existem
+erros de dados não fatais; **1** significa falha de leitura/escrita;
+**2** significa argumentos ou caminhos inválidos. `--help` retorna 0.
+Consulte `errors.json` mesmo após código 0: ERROR pode rejeitar um registro sem
+interromper o arquivo; WARNING aponta inconsistências e INFO registra duplicatas.
+
+O arquivo original é preservado. Destinos coincidentes com a entrada (incluindo
+hardlinks), links simbólicos e destinos que sejam diretórios são rejeitados.
+Reexecuções substituem apenas os três arquivos conhecidos. Todos são preparados
+em temporários antes da publicação, com substituição atômica por arquivo e
+restauração em falhas comuns de I/O. Não há transação contra queda de energia,
+interrupção abrupta ou escrita concorrente. Uma restauração que também falhe pode
+deixar um conjunto misto: o erro informa os backups mantidos para recuperação.
+
+Entrada/configuração idênticas geram bytes idênticos. Reordenação mantém os
+relatórios de negócio; a auditoria pode mudar por causa das linhas físicas.
+Duplicatas mudam somente auditoria. `run_id` é um hash da projeção exportada,
+não uma identificação única de tentativa ou hash dos bytes do arquivo original.
+Payloads arbitrários e linhas brutas não são exportados; errors.json mantém
+origens e hashes dos textos para consulta à entrada preservada. Nomes e caminhos
+locais podem aparecer nos diagnósticos. Não é um arquivo completo de restauração.

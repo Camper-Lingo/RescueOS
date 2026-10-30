@@ -1,12 +1,12 @@
 # Handoff / estado do projeto
 
-**Estado atual:** Etapas 1 e 2 aprovadas; correção da Code Review #003 implementada, aguardando revisão independente.
+**Estado atual:** Etapas 1 a 3 aprovadas; correção da Code Review #004 implementada, aguardando revisão independente.
 
-**Próxima tarefa:** revisão independente do Metrics & Evidence Engine e políticas do ADR-006. Aguardar aprovação antes de ampliar o escopo.
+**Próxima tarefa:** revisão independente de Reporting & CLI, schema e publicação do ADR-007. Aguardar aprovação antes de ampliar o escopo.
 
 **Evidências disponíveis:** PRD, arquitetura, gabarito das fixtures e decisões.
 
-**Não concluído:** exportadores finais, dashboard, n8n, agente, MCP, deploy e medições reais.
+**Não concluído:** dashboard, API HTTP, n8n, agente, MCP, deploy e medições reais.
 
 **Arquivos criados:** `rescueos/__init__.py`, `rescueos/contracts.py`,
 `rescueos/ingest.py`, `tests/__init__.py`, `tests/test_ingest.py`.
@@ -217,3 +217,104 @@ Os 33 testes originais de métricas foram comparados textualmente e preservados.
 Exemplos reais: entregue + cancelado com conflito de entregador => taxa 1/1,
 COMPLETE, exclusão NOT_DELIVERED. Acrescentar desfecho de outro pedido comprometido
 => mesma taxa observada 1/1, PARTIAL, exclusão CONFLICTING_DEPENDENCY adicional.
+
+## Etapa 4 — Reporting & CLI — 2026-10-29
+
+Preparação: raiz Git D:/rescueos_starter, git status vazio. Lidos AGENTS, PRD,
+ARCHITECTURE, DECISIONS, HANDOFF, gabarito e interfaces reais. Baseline executado:
+`python -B -m unittest discover -s tests -v` — 124 testes aprovados.
+
+Criados rescueos/reporting.py, rescueos/__main__.py, tests/test_reporting.py e
+tests/test_cli.py. Atualizados README, ADR-007 e este handoff. Sem alterações nas
+Etapas 1/2/3, contratos ou fixtures. CLI liga as interfaces públicas existentes:
+JSONL -> ingestão -> replay -> métricas -> relatórios. Sem duplicar cálculos.
+
+Schema 1.0: summary.json com projeções, métricas, populações e referências;
+report.md legível; errors.json com diagnósticos, origens e catálogo de evidências.
+Fraction vira objeto numerator/denominator; None permanece null. run_id é SHA-256
+da projeção exportada (não dos bytes originais), sem relógio ou aleatoriedade.
+Origens físicas e duplicatas ficam na auditoria para preservar relatórios de negócio.
+Payloads arbitrários/linhas brutas não são exportados: usar referências à entrada
+preservada e raw_text_sha256 para examinar variantes. Markdown escapa texto recebido.
+
+Códigos: 0 com publicação concluída, inclusive erros de dados não fatais; 1 para I/O;
+2 para argumentos/caminhos inválidos. Origem nunca é substituída; proteção também
+contra alias/hardlink e destinos simbólicos. Temporários preparados antes de
+publicar, fsync e os.replace por arquivo; rollback de erros comuns de I/O.
+Falha também no rollback preserva backups de recuperação e informa caminhos.
+Limites: sem transação de três arquivos contra queda/interrupção, sem lock ou
+escritores concorrentes; textos e backups completos em memória. API de renderização
+exige objetos íntegros da mesma execução. COMPLETE não cobre registros desconhecidos.
+
+Primeira execução dos 38 testes novos detectou três falhas de asserção de códigos
+no Markdown: códigos apareciam corretamente escapados com barras antes de `_`.
+As asserções foram ajustadas à representação Markdown, preservando os testes JSON.
+Adicionados ainda cenários de rollback, falha após staging inicial e proteção de links.
+
+Validação completa: `python -B -m unittest discover -s tests -v` — 166 testes,
+165 aprovados e 1 ignorado. Os 124 anteriores continuam aprovados. O caso ignorado
+exige criar symlink real, bloqueado pelo WinError 1314 neste Windows; guard de symlink
+testado com mock e teste real de hardlink executado. Cobertura: fixture/gabarito,
+schema e frações, null, COMPLETE/PARTIAL, duplicatas/conflitos, órfãos/ambiguidade,
+determinismo, Unicode e texto não confiável, CLI em subprocesso, entrada preservada,
+erros de argumentos/I/O e restauração em falhas simuladas. Sem dependências, commit
+ou push. Interromper após a entrega e aguardar revisão independente.
+
+CLI real executada duas vezes:
+`python -B -m rescueos --input fixtures/demo_events.jsonl --output-dir out`.
+Gerados summary.json, report.md e errors.json; confirmados todos os valores do
+gabarito, 20 eventos no catálogo, nenhum diagnóstico e None nas métricas do cancelado.
+SHA-256 dos três arquivos permaneceu idêntico na reexecução. A CLI usa UTF-8 também
+nos pipes do Windows. JSON/Markdown em UTF-8/LF conferidos pelos testes.
+
+Checks finais: git diff --check passou; whitespace dos quatro arquivos novos
+conferido separadamente. git diff --exit-code confirmou fixtures e módulos/testes
+anteriores intactos. Diff consolidado, incluindo untracked, em out/stage4-review.diff.
+Pendente revisão independente do schema, redação dos avisos e limites de atomicidade.
+
+## Correção da Code Review #004 — 2026-10-29
+
+Confirmados diretório/raiz Git D:/rescueos_starter e alterações existentes: README,
+DECISIONS e HANDOFF modificados; reporting.py, __main__.py e testes correspondentes
+untracked. Preservado esse trabalho; lidos AGENTS, documentos e interfaces atuais.
+
+Primeiro adicionadas duas regressões, executadas antes de corrigir:
+`python -B -m unittest tests.test_reporting.ReportPublicationTests.test_rollback_and_cleanup_failures_do_not_mask_publication_error tests.test_cli.CliTests.test_closed_stdout_subprocess_returns_one_and_preserves_reports -v`.
+Ambas falharam: mensagem apenas secondary cleanup failure, perdendo a falha primária;
+e código 120 no subprocesso Windows com stdout fechado, com erro no flush final.
+
+Correções: ReportWriteError (subclasse de OSError) separa erro original, falhas de
+rollback, falhas de limpeza e backups protegidos. Limpeza tenta todos os temporários
+sem mascarar a causa primária; vale também para staging que falha antes do registro.
+Publicação concluída com falha apenas na limpeza é distinguida de publicação falha.
+Não há nova alegação de atomicidade do conjunto ou suporte à concorrência.
+
+CLI trata escrita/flush do terminal e neutraliza stdout com os.devnull após falha,
+evitando código 120 no encerramento. Streams sem descritor são desativados em sys;
+stderr é usado para o diagnóstico e protegido se também falhar. Saídas normais 0 e
+2 preservadas; falha de I/O retorna 1. Não há mensagem de sucesso antes da publicação.
+
+Adicionados dez testes ao todo, incluindo as duas regressões. Testes extras cobrem
+falhas combinadas de staging/limpeza, rollback bem-sucedido com limpeza parcial,
+falha só na limpeza após publicação, BrokenPipeError/OSError na escrita/flush,
+erro de publicação sem tentativa de sucesso e ajuda/argumentos com stdout fechado.
+Asserções de caminhos normalizam alias 8.3/nomes completos do Windows por resolve.
+
+`python -B -m unittest tests.test_reporting tests.test_cli -v`: 52 testes,
+51 aprovados, 0 falhos, 1 ignorado.
+`python -B -m unittest discover -s tests -v`: 176 testes,
+175 aprovados, 0 falhos, 1 ignorado. Os 165 anteriormente aprovados continuam
+aprovados. Único skip investigado: WinError 1314 na criação de symlink real,
+sem alteração de privilégios; guard por mock e hardlink real continuam passando.
+
+Sondagem adicional: três subprocessos reais com stdout fechado retornaram 1,
+sem erro de encerramento, e mantiveram relatórios completos. Os três artefatos
+da fixture foram comparados em bytes com a saída anterior: idênticos. Serialização,
+métricas, esquema, evidências e run_id não mudaram.
+
+`git diff --check` e whitespace dos quatro arquivos novos passaram. Fixtures e
+módulos/testes das Etapas 1/2/3 permanecem intactos em relação ao Git. README
+preexistente preservado. Diff incremental da correção em out/review004.diff.
+Sem dependências, commit, push ou avanço de escopo. Aguardar revisão independente
+da recuperação de erros e tratamento dos streams. Permanecem limites de memória,
+atomicidade por arquivo e ausência de proteção para escritores concorrentes.

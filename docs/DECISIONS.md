@@ -358,3 +358,157 @@ Políticas de dependência e denominadores deste ADR precisam de revisão funcio
 A avaliação de conflitos é por tipo de evento, conservadora: não libera uma métrica
 porque duas variantes rejeitadas parecem compartilhar o mesmo campo numérico.
 Escopo local em memória; sem métricas causais, financeiras, exportadores ou serviços.
+
+## ADR-007 — Reporting & CLI determinísticos (Etapa 4)
+
+**Integração:** `python -m rescueos --input PATH --output-dir DIR` chama
+`read_jsonl -> replay -> compute_metrics -> build_reports -> write_reports`.
+Nenhum cálculo, validação de eventos ou regra de elegibilidade é duplicado.
+As três interfaces anteriores permanecem intactas. Não havia contrato de CLI ou
+serialização incompatível: este ADR define a representação que estava pendente
+no ADR-006. Tudo usa biblioteca padrão e execução local.
+
+### APIs e schema 1.0
+
+`build_reports(IngestResult, ReplayResult, MetricsResult) -> dict[str, str]` é puro;
+argumentos devem ser os resultados íntegros da mesma execução. Retorna exatamente
+summary.json, report.md e errors.json, já renderizados em texto.
+`write_reports(reports, output_dir, *, input_path)` publica esses três textos.
+
+Raiz de **summary.json**:
+
+| Campo | Tipo / significado |
+|---|---|
+| schema_version | string `1.0` |
+| versions | objeto com versões reporting, replay e metrics |
+| run_id | string SHA-256 determinística da projeção exportada, antes de adicionar run_id |
+| scope | string do contrato de métricas (snapshot completo) |
+| order_count | int: quantidade de projeções de pedidos; não substitui contagem elegível |
+| orders | objeto indexado por order_id, contendo replay e indicators |
+| aggregates | objeto indexado pelo nome do indicador agregado |
+| operational_context | array de referências de eventos de restaurante, sem pedidos artificiais |
+| excluded_histories | array de objetos order_id/reason; históricos não viram pedidos |
+| diagnostic_order_ids | array de IDs sem histórico aceito, oriundo das métricas |
+
+`orders[id].replay` preserva order_id, restaurant_id, status (string ou null),
+resolution, evidence_quality, timeline, applied_event_ids, status_event_ids,
+inconsistencies e ingestion_conflicts. Timeline contém metadados de eventos:
+event_id, order_id, restaurant_id, type e occurred_at original. Mantém a ordem
+UTC/event_id já definida pelo replay; aplicação é indicada por applied_event_ids.
+
+`orders[id].indicators` preserva os campos de OrderMetrics: order_id, status,
+resolution, evidence_quality, metrics e eligibility. Cada Metric tem name, value,
+unit, reason, formula, sources, supporting_event_ids, evidence_quality,
+order_resolution, order_evidence_quality, conflicts, issues e available.
+Sources preservam event_id, event_type, field e timestamp. Eligibility preserva
+eligible, reason e supporting_event_ids. Não são reinterpretados bloqueios locais
+ou excluídas inconsistências para melhorar a qualidade de um agregado.
+
+Cada AggregateMetric tem name, value, unit, reason, formula, criteria,
+included_order_ids, excluded_orders (order_id/reason), supporting_events
+(pares `[order_id,event_id]`), evidence_quality, numerator, denominator,
+numerator_order_ids, denominator_order_ids e available. Campos não aplicáveis
+continuam null, inclusive numerador/denominador de contagens.
+
+**Valores:** Fraction vira objeto `{"numerator": int, "denominator": int}` reduzido,
+com denominador positivo, inclusive inteiros racionais como 0/1. Contagens continuam
+int; None vira null; bool continua bool. Não há conversão para float nem
+arredondamento. A exibição humana usa n/d (ou n quando d=1), sem porcentagem
+arredondada. Unidades e fórmulas são copiadas do motor de métricas.
+
+Raiz de **errors.json**: schema_version, run_id (mesmo do summary), diagnostics
+(array) e evidence_catalog (array). Cada diagnóstico tem stage (`ingest`/`replay`),
+severity, classification e fatal=false. Ingestão ERROR é erro de registro,
+nunca falha fatal do processo; duplicatas são INFO/duplicate; conflitos são
+ERROR/conflict; demais rejeições são ERROR/invalid_event. Inconsistências são
+WARNING/inconsistency; qualidade INCOMPLETE gera WARNING/incomplete_evidence.
+Os campos code, message, event_id, affected_order_ids, affected_event_types e
+origins vêm de Diagnostic. Questões de replay têm order_id, code, message e
+evidence; avisos INCOMPLETE_EVIDENCE têm order_id e conflict_event_ids.
+Campos inexistentes no objeto de origem não são preenchidos com dados inventados.
+
+Origens contêm source, line e raw_text_sha256 (SHA-256 do texto decodificado
+armazenado em Origin.raw, em UTF-8 com surrogatepass; não é hash da linha em bytes
+quando houve erro de decodificação). Preserva todas as ocorrências, inclusive
+variantes excluídas, mas não exporta linhas brutas ou payloads arbitrários.
+Consultar a entrada preservada para examinar os conteúdos das variantes.
+evidence_catalog lista metadados dos eventos aceitos e suas origens, por event_id.
+Eventos de inconsistências também mantêm metadados e origens. A exportação é
+uma projeção auditável, não um backup completo do log ou dos objetos Python.
+
+**report.md** apresenta indicadores calculados, populações, motivos de exclusão,
+fatos reconstruídos por pedido, fontes com campos e timestamps, marcos aplicados,
+contexto e limitações. Cancelamento observado não implica causa verificada.
+Texto recebido é escapado para Markdown/HTML e controles são representados
+literalmente. Não atribuir responsabilidade automaticamente. Indicadores e causas
+de indisponibilidade não são substituídos por hipóteses.
+
+### Determinismo e idempotência
+
+JSON usa ensure_ascii, sort_keys, indent=2 e newline final; todos os arquivos são
+UTF-8 com LF, sem relógio ou UUID aleatório. Pedidos/métricas por chave; catálogo
+por event_id; diagnósticos por JSON canônico; eventos nas ordens públicas anteriores.
+run_id usa o SHA-256 do JSON canônico de summary sem run_id, incluindo as versões.
+Identifica a projeção exportada, não os bytes originais nem uma tentativa única.
+Não oferece assinatura, autenticação ou prova de completude.
+
+Origens físicas ficam em errors.json, permitindo variar auditoria sem alterar
+summary/report/run_id diante de duplicatas. Os relatórios de negócio mantêm
+IDs, campos e timestamps necessários para cruzar com a auditoria. A mesma entrada
+e configuração produz os três arquivos byte a byte idênticos. Embaralhar a entrada
+pode mudar números de linha, origens e auditoria; preserva a projeção semântica.
+
+### Caminhos, publicação e erros
+
+Entrada deve existir e ser arquivo; saída deve ser diretório (criado se necessário).
+Rejeitar destino que seja diretório, link simbólico ou coincida com a entrada,
+inclusive alias resolvido/hardlink. Nomes dos três arquivos são fixos; não aceitar
+nomes arbitrários no writer. Não modificar a entrada. As validações não são uma
+proteção contra atacante trocando arquivos/links concorrentemente (TOCTOU).
+
+Serializar tudo antes de publicar. Preparar temporários no diretório destino,
+flush/fsync, preparar backups dos destinos existentes e usar os.replace por arquivo.
+Em OSError comum, tentar restaurar destinos publicados e remover apenas os novos.
+Se a restauração falhar, informar conjunto possivelmente misto e caminhos de backups
+preservados. Temporários normais são limpos; diretório recém-criado pode ficar vazio.
+
+Atomicidade é por arquivo, não transação de três arquivos. Queda, interrupção abrupta,
+falha de recuperação ou execução concorrente pode deixar conjunto misto. Comparar
+run_id entre os três relatórios antes de consumir um conjunto e executar novamente
+após corrigir o problema. Não há lock, garantia de durabilidade do diretório ou
+suporte a escritores concorrentes no MVP. Memória inclui textos e backups completos.
+
+CLI: 0 para publicação bem-sucedida, mesmo com todos os registros inválidos;
+1 para falha de I/O; 2 para argumentos/caminhos inválidos; ajuda retorna 0.
+Saídas de terminal usam UTF-8, inclusive sob redirecionamento no Windows.
+Falhas fatais não prometem gerar errors.json. Mensagens não incluem traceback
+para falhas operacionais esperadas. Sempre consultar os diagnósticos: sem ID
+identificável, registros rejeitados não permitem quantificar pedidos desconhecidos,
+e COMPLETE continua limitado às evidências conhecidas conforme ADR-006.
+
+### Correção da Code Review #004 — erros secundários e saída do terminal
+
+`ReportWriteError` é uma subclasse de OSError: mantém a compatibilidade do writer
+e da CLI, sem mudar o schema dos relatórios. Registra separadamente original_error,
+rollback_errors (pares nome/erro), cleanup_errors (pares caminho/erro),
+recovery_backups e publication_completed. A exceção primária é preservada como
+causa explícita. A mensagem inclui o erro original, restauração incompleta quando
+aplicável, backups protegidos e falhas secundárias de rollback/limpeza.
+
+A limpeza tenta todos os temporários não protegidos e acumula OSError em vez de
+substituir a exceção principal. A mesma proteção vale para falha de preparação de
+um temporário antes de seu registro no writer. Backups necessários à recuperação
+não são removidos. Falhas de limpeza podem deixar outros temporários, cujos caminhos
+permanecem no erro. Falha apenas na limpeza após todas as substituições retorna
+erro de I/O, informando publicação concluída, sem afirmar que os destinos antigos
+foram preservados. publication_completed não promete transação ou concorrência.
+
+A CLI trata escrita e flush dos streams, incluindo saída da ajuda/argparse.
+Após falha de stdout, redireciona seu descritor para os.devnull para que o buffer
+pendente não produza outra falha no encerramento do Python (código 120).
+Streams fornecidos pelo chamador sem descritor utilizável são desativados em sys.
+O diagnóstico é tentado em stderr; se este também falhar, seu flush é neutralizado.
+Falhas do terminal retornam 1, inclusive quando os relatórios já foram publicados;
+não revertem arquivos publicados nem apagam o erro original de publicação.
+Mensagens de sucesso só são tentadas depois de o writer concluir sem erro.
+Retornos normais 0 e 2, contratos de negócio e limites de atomicidade permanecem.

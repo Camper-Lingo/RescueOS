@@ -24,10 +24,10 @@ function ContextGuard({ onLost }: { onLost: () => void }) {
 function CameraRig({ focus, reduced, resetRequest }: { focus: Zone | null; reduced: boolean; resetRequest: number }) {
   const { camera, size } = useThree();
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null), moving = useRef(true);
-  const target = useMemo(() => new Vector3(...(focus ? ZONE_POSITIONS[focus] : [0, 0, 0] as const)), [focus]);
+  const target = useMemo(() => new Vector3(...(focus ? ZONE_POSITIONS[focus] : [0, 0, 0] as const)).setY(focus ? .35 : 0), [focus]);
   const cameraTarget = useMemo(() => target.clone().add(new Vector3(10, 11, 12)), [target]);
-  const resetZoom = useRef(true), defaultZoom = Math.min(size.width / 14.2, size.height / 10.3);
-  useEffect(() => { moving.current = true; }, [focus, reduced]);
+  const resetZoom = useRef(true), defaultZoom = Math.max(18, Math.min(85, Math.min(size.width / 14.2, size.height / 10.3) * (focus ? 1.12 : 1)));
+  useEffect(() => { resetZoom.current = true; moving.current = true; }, [focus, reduced]);
   useEffect(() => {
     resetZoom.current = true; moving.current = true;
   }, [resetRequest, size.width, size.height]);
@@ -72,21 +72,22 @@ export default function RestaurantScene({ orders, selected, selectedMonster, onO
     && !events.some(event => applied.has(event.event_id) && event.type === 'PICKED_UP');
   const kitchenActive = orders.some(order => order.status === 'PREPARING');
   const positions: Record<MonsterId, [number, number, number]> = {
-    scout: [.25, .16, -1.3], fixer: [-2.1, .16, -1.7], trace: [-2.7, .16, 1.1],
-    runner: courierPresent ? [2.4, .16, .25] : [4.0, .16, 2.2], coordinator: [2.3, .16, 1.4],
+    scout: [-.1, .16, -.3], fixer: [-2.1, .16, -1.7], trace: [-1.65, .16, 2.1],
+    runner: courierPresent ? [2.4, .16, .25] : [4.0, .16, 2.2], coordinator: [.8, .16, 2.9],
   };
   return <Suspense fallback={<div className="scene-loading">Pré-aquecendo o restaurante…</div>}>
     <Canvas shadows orthographic camera={{ position: [10, 11, 12], zoom: 57, near: .1, far: 100 }}
       dpr={[1, 1.5]} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       aria-label="Restaurante 3D interativo da simulação RescueOS">
       <ContextGuard onLost={onContextLost} />
-      <ambientLight intensity={1.15} color="#fff2db" />
-      <hemisphereLight args={['#fff1d8', '#758d9d', 1.3]} />
-      <directionalLight position={[-4, 11, 6]} intensity={2.5} color="#ffe5b5" castShadow
+      <ambientLight intensity={.55} color="#edf4ee" />
+      <hemisphereLight args={['#e7f3ef', '#65746d', .95]} />
+      <directionalLight position={[-4, 11, 6]} intensity={2.7} color="#ffe2b5" castShadow
         shadow-mapSize={[1024, 1024]} shadow-camera-left={-9} shadow-camera-right={9}
         shadow-camera-top={9} shadow-camera-bottom={-9} shadow-bias={-.0005} />
       <pointLight position={[-2, 3, -2]} intensity={7} color="#ffcf8c" distance={8} />
       <pointLight position={[3, 3, 2]} intensity={5} color="#88d1dc" distance={7} />
+      <directionalLight position={[6, 5, -5]} intensity={1.1} color="#b7e6ef" />
       <Restaurant focus={focus} onFocus={onFocus} kitchenActive={kitchenActive} diagnostics={diagnostics} />
       {(Object.keys(positions) as MonsterId[]).map(id => <Monster key={id} id={id} position={positions[id]}
         selected={selectedMonster === id} reduced={reduced} onSelect={onMonster} />)}

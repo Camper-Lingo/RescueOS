@@ -1,8 +1,8 @@
 # Handoff / estado do projeto
 
-**Estado atual:** Etapas 1–4 preservadas; cinco correções da Code Review #005 e compatibilidade de whitespace dos IDs implementadas, aguardando revisão independente (2026-10-30).
+**Estado atual:** Etapa 5A aprovada e commitada em `2a66164`; polimento visual 5B implementado e validado localmente, aguardando revisão técnica e visual independente (2026-10-30). Etapas 1–4 e contratos 5A preservados.
 
-**Próxima tarefa:** revisão independente da Etapa 5A e ADR-008. Não ampliar o escopo nem fazer commit sem a revisão do usuário.
+**Próxima tarefa:** revisão independente da Etapa 5B, incluindo capturas e custo gráfico medido. Não fazer commit/push nem iniciar a Etapa 6 sem revisão do usuário.
 
 **Evidências disponíveis:** PRD, arquitetura, gabarito das fixtures e decisões.
 
@@ -587,3 +587,100 @@ Limites: tabela deve acompanhar mudanças futuras no whitespace Python/Unicode;
 IDs invisíveis continuam visualmente invisíveis, sem perda de identidade. Mantidos
 skip de symlink Windows, aviso de depreciação TestClient/HTTPX e validação gráfica
 por SwiftShader. Aguardando revisão independente, sem novas funcionalidades.
+
+## Etapa 5B — Visual Polish & Immersion — 2026-10-30
+
+Raiz `D:/rescueos_starter` e commit estável 5A `2a66164` confirmados antes das
+mudanças. Ponytail 5.3.3 disponível e ativo em FULL. Sem dependências novas,
+commit, push ou avanço para a Etapa 6. Baseline inicialmente limpo: Python
+198 casos (197 aprovados e um skip), Node 14, strict/build aprovados e E2E 21.
+Capturas anteriores foram preservadas antes de os testes regenerarem imagens.
+
+Auditoria inicial em Chrome real/headless: cozinha/retirada reconhecíveis, mas
+luz ambiente achatava materiais, Scout/Trace/Coordinator ficavam atrás de bancadas
+e etiquetas competiam. Prioridades: profundidade, visibilidade dos cinco,
+hierarquia dos rótulos e integração HTML. Riscos previstos: oclusão e custo gráfico.
+
+Incrementos implementados e inspecionados:
+
+- A/B: ambiente mais contido, preenchimento frio e luz principal quente; piso
+  quadriculado procedural, acabamentos da plataforma, forno/coifa, prateleira,
+  monitor auxiliar e filetes emissivos estáticos, sem novo mapa de sombra.
+- C: cinco mascotes preservados no mesmo componente. Scout com sensor peitoral;
+  Fixer com avental/botas; Trace mais largo com lente; Runner com boné/bolsa;
+  Coordinator com headset/tablet. Respiração, inclinação, piscar e braços/pernas
+  alternados usam refs e fases fixas. Movimento reduzido interrompe decoração.
+  Scout, Trace e Coordinator saíram de trás das bancadas; Runner mantém os marcos.
+- D: mesma arquitetura/counter de reset; alvo de zona em y=0,35 e aproximação 1,12×,
+  zoom limitado a 18–85. Visão geral restaura posição/orientação/alvo/zoom mesmo
+  após órbita, scroll e comandos repetidos, instantaneamente em reduced motion.
+- E: refinamento dos estilos existentes, cena com mais espaço, cores coordenadas,
+  métricas/evidências mais legíveis, labels compactas e seleção clara. Aria-pressed
+  para zonas/mascotes; “Snapshot carregado” descreve corretamente os dados estáticos.
+
+Na retomada, esses sete arquivos de produção já estavam modificados, e os três
+testes de `frontend/e2e/stage5b.spec.ts` estavam novos/não rastreados. Não se
+recomeçou a implementação. Restavam teste interrompido, validação final e docs.
+O comando exigido `npm.cmd run test:e2e -- e2e/stage5b.spec.ts` foi reexecutado:
+dois casos passaram e o de câmera falhou (diferença 0,477204 no zoom de referência).
+Sondagem independente mostrou que 300 ms capturavam a interpolação de entrada;
+repouso e reset convergiam para o mesmo zoom 54,368932 no Canvas desktop final.
+Corrigida a sincronização do teste para esperar o zoom calculado, mantendo os
+asserts de posição, orientação, alvo e zoom. Também se verifica movimento em cada
+mascote, em vez de só diferença do conjunto. Nenhum ajuste de produto foi necessário
+nesta retomada. O primeiro runner foi encerrado após concluir seus casos, pois
+permanecera no teardown com os servidores; as reexecuções reutilizaram esses
+servidores e terminaram normalmente. Ao final, portas 8000/5173 sem listeners.
+
+Validação final executada no Windows:
+
+- `npm.cmd run test:e2e -- e2e/stage5b.spec.ts`: 3/3, 35,5 s.
+- `.\.venv\Scripts\python.exe -B -m unittest discover -s tests -v`: 198 casos,
+  197 aprovados, zero falhas, um skip de symlink por WinError 1314, 32,576 s.
+- `npm.cmd test`: 14/14, zero skips/falhas.
+- `npm.cmd exec tsc -- --noEmit`: exit 0.
+- `npm.cmd run build`: exit 0; chunks JS de entrada 250,12 kB e cena lazy
+  953,83 kB (gzip 78,91/253,77 kB). Sem dependências/lockfile alterados.
+- `npm.cmd run test:e2e`: 24/24, 1,6 min; os 21 anteriores preservados.
+- `git diff --check`: sem erros. Teste novo incluído na inspeção de whitespace.
+
+As três regressões novas leem transformações reais da cena via Fiber instalado
+(interface interna usada somente no teste, versão fixada). Cobrem cinco mascotes,
+movimento reduzido, seleção HTML, foco e resets normais repetidos e Runner nos
+quadros 14→15→18→14 com disponibilidade/13 minutos. Os testes anteriores cobrem
+reset reduced motion por pixels, seleção no Canvas, replay completo, 2D, falhas de
+API/importação/renderização/contexto, runtime validation e mensagens/retry.
+
+Inspeção final de screenshots desktop 1440×1080 e mobile 390×844 confirmou os
+cinco personagens na visão geral, mais legibilidade dos painéis, detalhes do forno,
+monitores, borda luminosa e menos texto nas etiquetas. Consultados ord-1002,
+evidências, cozinha, visão geral, quadro 15 e fallback 2D; sem overflow horizontal.
+Sondagem adicional em Chrome confirmou 20 eventos/21 quadros/3 pedidos e fração
+exata 1/3 por loadBundle, sem erros de página/console em operação normal. Erros
+forçados dos testes são esperados e contidos. Three.Clock/PCFSoftShadowMap e
+HTTPX/TestClient continuam emitindo avisos de dependências; não se migraram APIs.
+
+Antes/depois: `out/stage5b-before-*.png` e `out/stage5b-after-*.png`, incluindo
+desktop, evidências e mobile 3D/2D; adicionais cozinha, replay15 e desktop 2D.
+Medição de 45 intervalos rAF em Chrome 156/SwiftShader, após 1,8 s: draw calls
+280→308, triângulos 101.046→119.464, geometrias 178→195, texturas 12→13.
+Mediana desktop 99,9→150 ms (Canvas 1016×488→1004×560); mobile 50→66,7 ms
+(360×360→360×320). Com Canvas nas dimensões anteriores: 116,7/83,3 ms.
+Dados brutos nos três `out/stage5b-performance-*.json`; tabela/p95 no guia.
+O custo aumentou; variação de amostras e renderização por software impedem inferir
+FPS de GPU. Exige revisão em dispositivo modesto real antes de prometer fluidez.
+
+Arquivos de produção: App.tsx, RestaurantScene.tsx, SceneLabel.tsx, Monster.tsx,
+Restaurant.tsx, OrderParcel.tsx e app.css. Novo teste: stage5b.spec.ts. Documentos:
+README.md, CONTROL_TOWER.md e HANDOFF.md. Diff completo em `out/stage5b-review.diff`,
+incluindo o arquivo não rastreado. Núcleo/API/testes anteriores, dados, hashes,
+fontes, runtime IDs/Unicode, frações, fixtures e lockfile permanecem sem alterações.
+Não houve alteração de contratos que exigisse novo ADR.
+
+Limitações: labels ainda se aproximam na retirada e podem cobrir parte do Runner;
+mobile depende do HTML para ler detalhes pequenos. Não houve homologação em GPU
+física, telefone real, outros browsers nem auditoria completa de acessibilidade.
+Fallback/reduced motion preservados. Snapshot pequeno e estático, prefixos
+quadráticos e limites de publicação/concorrência continuam conforme ADRs 007/008.
+Pendente somente revisão técnica/visual independente e aceite do custo gráfico;
+não iniciar agentes, MCP, n8n, novo backend ou Etapa 6 nesta entrega.

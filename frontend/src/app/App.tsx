@@ -24,7 +24,7 @@ function supportsWebGL() {
 }
 function Brand() {
   return <header className="topbar"><a className="brand" href="/" aria-label="RescueOS início"><span className="brand-mark">R<span>•</span></span>
-    <span>Rescue<span className="brand-os">OS</span></span></a><span className="brand-divider" /><div className="experience">The Living Restaurant<span>CONTROL TOWER / 5A</span></div>
+    <span>Rescue<span className="brand-os">OS</span></span></a><span className="brand-divider" /><div className="experience">The Living Restaurant<span>LABORATÓRIO DE OPERAÇÕES</span></div>
     <div className="topbar-tags"><span className="demo-badge"><i /> Demo Mode</span><span className="synthetic">Cenário sintético</span></div></header>;
 }
 function Experience({ bundle }: { bundle: Bundle }) {
@@ -63,7 +63,7 @@ function Experience({ bundle }: { bundle: Bundle }) {
   return <>
     <section className="page-heading"><div><span className="eyebrow">Uma operação. Cada evento conta.</span><h1>Seu restaurante, <em>vivo.</em></h1>
       <p>Explore o percurso dos pedidos. Encontre a evidência por trás de cada número.</p></div>
-      <span className="live-status"><i /> API conectada <small>Snapshot {replay.snapshot_id.slice(0, 8)}</small></span></section>
+      <span className="live-status"><i /> Snapshot carregado <small>Cenário local · {replay.snapshot_id.slice(0, 8)}</small></span></section>
     <section className="kpis" aria-label="Indicadores do instante selecionado">{[
       ['total_created', 'Pedidos criados', '▣'], ['total_delivered', 'Entregues', '↗'],
       ['total_cancelled', 'Cancelados', '⊘'], ['delay_rate', 'Taxa de atraso', '◷'],
@@ -76,8 +76,8 @@ function Experience({ bundle }: { bundle: Bundle }) {
     <div className="workspace"><main className="world-column">
       <section className="world-card" aria-label="Mundo do restaurante"><div className="world-header"><div><span className="eyebrow">The Living Restaurant</span>
         <span className="world-subtitle">Visão isométrica · operação demonstrativa</span></div><span className="scene-badge">{use2d ? '2D' : '3D'} WORLD</span></div>
-        <nav className="zone-nav" aria-label="Focar câmera"><button className={focus === null ? 'active' : ''} onClick={() => { setFocus(null); setResetRequest(request => request + 1); }}>Visão geral</button>
-          {(['kitchen', 'pickup', 'incident', 'command'] as Zone[]).map(zone => <button key={zone} className={focus === zone ? 'active' : ''}
+        <nav className="zone-nav" aria-label="Focar câmera"><button aria-pressed={focus === null} className={focus === null ? 'active' : ''} onClick={() => { setFocus(null); setResetRequest(request => request + 1); }}>Visão geral</button>
+          {(['kitchen', 'pickup', 'incident', 'command'] as Zone[]).map(zone => <button key={zone} aria-pressed={focus === zone} className={focus === zone ? 'active' : ''}
             onClick={() => setFocus(zone)}>{ZONE_NAMES[zone]}</button>)}</nav>
         <div className={`scene-container ${use2d ? 'fallback-active' : ''}`}>{use2d ? fallback : <ErrorBoundary fallback={fallback} onError={sceneError}><Suspense fallback={<div className="scene-loading">Preparando o mundo 3D…</div>}>
           <RestaurantScene orders={frame.orders} selected={selected} selectedMonster={monster} onOrder={selectOrder} onMonster={setMonster}
@@ -90,7 +90,7 @@ function Experience({ bundle }: { bundle: Bundle }) {
             : <button onClick={() => setMode2d(!mode2d)}>{mode2d ? 'Voltar à vista 3D' : 'Usar vista 2D'}</button>}</div>
       </section>
       <section className="crew"><div className="section-heading"><span className="eyebrow">Conheça a equipe</span><span className="tiny">Mascotes demonstrativos · sem execução de IA</span></div>
-        <div className="crew-list">{MONSTERS.map(character => <button key={character.id} className={monster === character.id ? 'active' : ''}
+        <div className="crew-list">{MONSTERS.map(character => <button key={character.id} aria-pressed={monster === character.id} className={monster === character.id ? 'active' : ''}
           onClick={() => { setMonster(monster === character.id ? null : character.id); setFocus(character.id === 'trace' ? 'incident' : character.id === 'fixer' ? 'kitchen' : character.id === 'runner' ? 'pickup' : 'command'); }}>
           <span className={`mini-monster ${character.id}`} style={{ background: character.color }}><i /><i /></span><strong>{character.name}</strong><small>{character.role}</small></button>)}</div>
         {roles && <div className="crew-description" role="status"><strong>{roles.name}</strong><span>{roles.description}</span><button aria-label="Fechar papel do mascote" onClick={() => setMonster(null)}>×</button></div>}
@@ -108,7 +108,7 @@ function Experience({ bundle }: { bundle: Bundle }) {
       {bundle.diagnostics.diagnostics.map((diagnostic, index) => <details key={`${diagnostic.code}-${index}`}><summary>{diagnostic.code} · {diagnostic.event_id ?? diagnostic.order_id ?? 'Arquivo'}</summary><pre>{JSON.stringify(diagnostic, null, 2)}</pre></details>)}
     </details></section>
     <footer><span>RescueOS <b>/</b> The Living Restaurant</span><p>Dados sintéticos. Movimentos de idle e patrulha são decorativos; estados e métricas vêm dos eventos. Nenhuma previsão, aprovação ou ação de IA é executada.</p>
-      <span className="tiny">READ ONLY · STAGE 5A</span></footer>
+      <span className="tiny">SOMENTE LEITURA · DEMO</span></footer>
     <span className="sr-only" aria-live="polite">{cursor.index} eventos exibidos. {order ? `${order.order_id}: ${order.status ?? 'indeterminado'}` : 'Sem projeção de pedido'}</span>
   </>;
 }

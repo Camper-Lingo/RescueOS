@@ -28,6 +28,7 @@ export default function OrderParcel({ order, offset, selected, reduced, onSelect
     <mesh position={[0, .19, 0]}><boxGeometry args={[.085, .009, .43]} /><meshStandardMaterial color={visual.color} /></mesh>
     <mesh position={[0, .025, .216]}><planeGeometry args={[.2, .12]} /><meshStandardMaterial color="#faf0da" /></mesh>
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -.2, 0]}><ringGeometry args={[selected ? .42 : .33, selected ? .46 : .35, 32]} /><meshBasicMaterial color={visual.color} transparent opacity={selected ? .95 : .55} /></mesh>
+    <mesh position={[0, .38, 0]}><cylinderGeometry args={[.008, .008, .4, 4]} /><meshBasicMaterial color="#779b90" /></mesh>
     <group position={[0, .6, 0]}><SceneLabel title={order.order_id} selected={selected}
       subtitle={visual.uncertain ? 'Conclusão limitada' : STATUS_LABELS[order.status ?? ''] ?? 'Sem projeção'} /></group>
   </group>;

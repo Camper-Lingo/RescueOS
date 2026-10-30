@@ -1,8 +1,9 @@
-# Etapa 5A — The Living Restaurant
+# Etapas 5A/5B — The Living Restaurant
 
-Implementação local de 2026-10-30, aguardando revisão independente. Não houve commit,
-push ou deploy. Os módulos e testes das Etapas 1–4, as fixtures e os contratos
-anteriores foram preservados.
+Etapa 5A aprovada e registrada no commit `2a66164`. Polimento visual da Etapa 5B
+implementado em 2026-10-30, aguardando revisão técnica e visual independente,
+sem commit, push ou deploy desta etapa. Os módulos e testes das Etapas 1–4,
+as fixtures e os contratos da Etapa 5A foram preservados.
 
 ## Executar no PowerShell
 
@@ -178,17 +179,28 @@ cozinha com fogão/coifa/panela/pratos, balcão/campainha/prateleira, portal de 
 estação de evidências e console de operações. Plantas e luminárias são procedurais.
 Não há downloads de modelos, fontes ou texturas.
 
+O polimento 5B mantém a disposição funcional das zonas: reduz luz ambiente e
+acrescenta preenchimento frio sem outra sombra dinâmica; piso quadriculado em
+uma textura local, borda da plataforma, janela do forno, detalhes de coifa,
+prateleira, monitor auxiliar e filetes emissivos estáticos. Scout, Trace e
+Coordinator foram reposicionados para sair de trás das bancadas. Etiquetas de
+zonas e pedidos não selecionados são compactas; o pedido selecionado mantém
+subtítulo, contraste e anel de destaque. Os dados completos continuam no HTML.
+
 `Monster` reutiliza geometria procedural para cinco personagens originais:
 
 | Mascote | Identidade | Movimento/papel demonstrativo |
 | --- | --- | --- |
-| Scout | Ciano, antena e sensor | Patrulha curta determinística; futuro SurgeShield |
-| Fixer | Coral, chifres e mochila | Idle saltitante; futuro RescueOps |
-| Trace | Roxo, lente e antena | Estação de evidências; futuro FairTrace |
-| Runner | Menta, bolsa e pernas | Presença/retirada conforme marcos aplicados do pedido selecionado |
-| Coordinator | Azul, headset | Supervisão conceitual; nenhuma aprovação realizada |
+| Scout | Ciano, antena, sensor e placa peitoral | Patrulha curta determinística; futuro SurgeShield |
+| Fixer | Coral, chifres, mochila, avental e botas | Respiração mais marcada; futuro RescueOps |
+| Trace | Roxo, corpo largo, lente translúcida e antena | Inclinação discreta; futuro FairTrace |
+| Runner | Menta, silhueta alta, bolsa e boné | Presença/retirada conforme marcos aplicados do pedido selecionado |
+| Coordinator | Azul, headset, microfone e tablet | Respiração mais lenta; nenhuma aprovação realizada |
 
 Idle inclui respiração, pequenos saltos, piscar, orientação e movimento de pernas.
+Na 5B, piscar tem transição curta, braços e pernas alternam na caminhada e os
+personagens têm fases/amplitudes diferentes. Movimento reduzido aplica posições
+de destino sem interpolação e interrompe os movimentos decorativos dos mascotes.
 Seleção destaca o personagem. Nomes/papéis também existem em HTML. Os loops usam
 o relógio da cena com fases fixas, sem aleatoriedade; fases decorativas não são
 evidência de ações operacionais e não precisam voltar com o cursor de eventos.
@@ -215,8 +227,16 @@ e a consulta de evidências continuam disponíveis sem recarregar.
 
 “Visão geral” emite um comando monotônico de reset, mesmo já estando selecionada.
 Restaura posição `[10,11,12]`, alvo `[0,0,0]`, orientação e zoom adaptado ao viewport
-`min(largura/14.2, altura/10.3)`. Com movimento reduzido, aplica imediatamente;
+`clamp(min(largura/14.2, altura/10.3), 18, 85)`. Foco em zona usa sua posição
+com altura `0.35`, o mesmo deslocamento de câmera e zoom multiplicado por `1.12`
+antes de limitar a 18–85. Com movimento reduzido, aplica imediatamente;
 no modo normal, interpola suavemente e suspende a inércia da órbita durante o reset.
+
+Na interface 5B, a cena ganhou espaço vertical, cores coordenadas em verde/cinza,
+tipografia e contraste mais legíveis nos indicadores e evidências. Navegação de
+zonas/mascotes expõe `aria-pressed`; seleção HTML, foco visível, mensagens de erro,
+replay e alternativa 2D mantêm a estrutura anterior. “Snapshot carregado” descreve
+a leitura local, sem sugerir uma conexão operacional em tempo real.
 
 ## Dependências e testes
 
@@ -240,6 +260,8 @@ npm.cmd test
 npm.cmd exec tsc -- --noEmit
 npm.cmd run build
 npm.cmd run test:e2e
+# Somente regressões visuais/comportamentais da 5B:
+npm.cmd run test:e2e -- e2e/stage5b.spec.ts
 ```
 
 Os testes de navegador usam **Chrome já instalado**, com SwiftShader para WebGL
@@ -257,6 +279,40 @@ comparam o contrato Python com o TypeScript e exercitam os clientes via HTTP loc
 Starlette emite depreciação do adaptador HTTPX no TestClient; os testes passam.
 A migração desse adaptador deve ser revista antes de atualizar dependências.
 
+Validação final 5B: Python 198 casos (197 aprovados, um skip preexistente de
+symlink/WinError 1314); Node 14/14; TypeScript strict e build com exit 0;
+Playwright 24/24, incluindo os 21 anteriores. Os três testes novos verificam
+transformações reais dos cinco mascotes, imobilidade com movimento reduzido,
+seleção HTML, foco/zoom e reset repetido da câmera após interação manual, além
+da posição do Runner nos quadros 14, 15 e 18 e ao voltar ao 14. O teste de câmera
+aguarda o zoom calculado para o viewport antes de capturar a referência, sem
+confundir a interpolação de entrada com a posição de repouso.
+
+Capturas comparáveis em `out/stage5b-before-{desktop,evidence,mobile-3d,mobile-2d}.png`
+e `out/stage5b-after-{desktop,evidence,mobile-3d,mobile-2d}.png`. Capturas adicionais
+mostram cozinha, replay no quadro 15 e alternativa 2D desktop. Todos são artefatos
+locais ignorados pelo Git. O diff completo, incluindo o teste novo não rastreado,
+fica em `out/stage5b-review.diff`.
+
+Medição exploratória: Chrome 156.0.8078.74 headless/SwiftShader, um browser por
+execução, viewports 1440×1080 e 390×844, movimento normal, aquecimento de 1,8 s e
+45 intervalos de requestAnimationFrame após descartar o primeiro. A leitura do
+renderer passou de 280 para 308 draw calls e de 101.046 para 119.464 triângulos;
+geometrias de 178 para 195 e texturas de 12 para 13. Nenhum mapa de sombra novo.
+
+| Mediana / p95 dos intervalos (ms) | Antes | Depois | Depois com Canvas nas dimensões anteriores |
+| --- | --- | --- | --- |
+| Desktop | 99,9 / 100,1 | 150,0 / 166,6 | 116,7 / 133,3 |
+| Mobile emulado | 50,0 / 66,7 | 66,7 / 83,3 | 83,3 / 83,4 |
+
+Canvas desktop mudou de 1016×488 para 1004×560; mobile de 360×360 para 360×320.
+A última coluna mantém 1016×488/360×360 por CSS
+temporário, sem mudar o produto. Arquivos `out/stage5b-performance-before.json`,
+`-after.json` e `-same-canvas.json` registram os valores brutos. Há custo gráfico
+adicional e variação entre amostras; estes intervalos em renderização por software
+não são tempo de GPU nem certificação de FPS. Homologar em GPU/dispositivo modesto
+real antes de prometer fluidez. Fallback 2D e movimento reduzido continuam disponíveis.
+
 ## Limitações e próxima revisão
 
 - Fixture pequena e fixa em memória. Prefixos completos tornam o preparo e o
@@ -265,7 +321,8 @@ A migração desse adaptador deve ser revista antes de atualizar dependências.
   antes de aceitar entradas externas.
 - A representação é esquemática, com um Runner para o pedido selecionado;
   posições/caminhos decorativos não representam coordenadas ou tempos de viagem
-  reais. Rótulos podem se aproximar em zooms/ângulos extremos. HTML é a alternativa
+  reais. Rótulos podem se aproximar, especialmente na retirada; podem cobrir parte
+  do Runner nesse marco e em zooms/ângulos extremos. HTML é a alternativa
   de consulta e seleção. Nenhuma meta de FPS foi certificada.
 - Só Chrome/Windows foi executado nesta entrega; outros browsers/GPUs e recursos
   assistivos precisam de homologação. Não é uma auditoria completa de acessibilidade.

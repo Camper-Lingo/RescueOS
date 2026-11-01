@@ -12,7 +12,7 @@ type Check = (value: unknown) => void;
 const text: Check = value => { if (typeof value !== 'string') invalid(); };
 // Whitespace de Python str.strip(): inclui C0/NEL; U+FEFF é conteúdo, sem normalizar IDs.
 const identifierContent = /[^\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]/;
-const identifier: Check = value => { if (typeof value !== 'string' || !identifierContent.test(value)) invalid(); };
+export const identifier: Check = value => { if (typeof value !== 'string' || !identifierContent.test(value)) invalid(); };
 const boolean: Check = value => { if (typeof value !== 'boolean') invalid(); };
 const natural: Check = value => { if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) invalid(); };
 const match = (pattern: RegExp): Check => value => { if (typeof value !== 'string' || !pattern.test(value)) invalid(); };
@@ -33,14 +33,14 @@ const decimal = match(/^\d+$/), sha256 = match(/^[a-f0-9]{64}$/);
 // Forma HTTP; calendário e regras operacionais continuam validados pelo núcleo.
 const timestamp = match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/);
 const metadata = { schema_version: oneOf('1.0'), snapshot_id: sha256, demo_mode: oneOf(true), synthetic: oneOf(true), scenario: text };
-const rational = object({ numerator: match(/^-?\d+$/), denominator: match(/^[1-9]\d*$/) });
+export const rational = object({ numerator: match(/^-?\d+$/), denominator: match(/^[1-9]\d*$/) });
 const origin = object({ source: text, line: value => { natural(value); if (value === 0) invalid(); }, raw_text_sha256: sha256 });
 const evidenceFields = { event_id: identifier, order_id: nullable(identifier), restaurant_id: identifier, type: identifier, occurred_at: timestamp, origins: list(origin) };
 const evidence = object(evidenceFields);
 const diagnostic = object({ code: text, message: optional(nullableText), event_id: optional(nullableText), order_id: optional(nullableText),
   affected_order_ids: optional(strings), affected_event_types: optional(strings), origins: optional(list(origin)), evidence: optional(list(evidence)),
   conflict_event_ids: optional(strings), stage: optional(nullableText), severity: optional(nullableText), classification: optional(nullableText), fatal: optional(boolean) });
-const source = object({ event_id: identifier, event_type: identifier, field: identifier, timestamp, origins: list(origin) });
+export const source = object({ event_id: identifier, event_type: identifier, field: identifier, timestamp, origins: list(origin) });
 const resolution = oneOf('CONSISTENT', 'INCONSISTENT', 'AMBIGUOUS', 'INCOMPLETE');
 const orderQuality = oneOf('NO_LINKED_CONFLICTS', 'INCOMPLETE');
 const available = (check: Check): Check => value => {
@@ -75,7 +75,7 @@ function assertShape(value: unknown): asserts value is Bundle {
   diagnostics: object({ ...metadata, diagnostics: list(diagnostic), evidence_catalog: list(evidence) }) })(value);
 }
 function assertIndividual(value: unknown): asserts value is OrderResponse { object({ ...metadata, order })(value); }
-function canonical(value: unknown): string {
+export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
   if (value && typeof value === 'object') return `{${Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, entry]) => `${JSON.stringify(key)}:${canonical(entry)}`).join(',')}}`;
   return JSON.stringify(value);

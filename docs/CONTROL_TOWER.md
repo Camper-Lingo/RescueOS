@@ -1,9 +1,9 @@
 # Etapas 5A/5B — The Living Restaurant
 
-Etapa 5A aprovada e registrada no commit `2a66164`. Polimento visual da Etapa 5B
-implementado em 2026-10-30, aguardando revisão técnica e visual independente,
-sem commit, push ou deploy desta etapa. Os módulos e testes das Etapas 1–4,
-as fixtures e os contratos da Etapa 5A foram preservados.
+Etapa 5A aprovada em `2a66164`; Etapa 5B aprovada em `4046192`. Etapa 6A implementada
+para Code Review #007: Trace investiga com Ollama local e ferramentas de leitura.
+Veja [TRACE.md](TRACE.md). Núcleo das Etapas 1–4, fixtures, cena 5B e GETs 5A
+preservados; sem commit, push ou deploy nesta etapa.
 
 ## Executar no PowerShell
 
@@ -36,7 +36,8 @@ npm.cmd run dev
 Abra http://127.0.0.1:5173/; documentação HTTP em http://127.0.0.1:8000/docs.
 Vite encaminha `/api` para a porta 8000. Não exponha os servidores na rede pública.
 Ctrl+C encerra cada processo. A API lê a fixture uma vez no startup; reinicie o
-backend para trocar o snapshot. Não há comando HTTP de escrita ou recarga.
+backend para trocar o snapshot. Não há comando HTTP de escrita de negócio ou
+recarga. O POST de Trace inicia investigação somente leitura (ADR-009).
 
 `npm.cmd run build` faz typecheck strict e build de produção. Para conferir o build
 local, mantenha o backend e execute `npm.cmd run preview`; a porta é 4173, com o
@@ -193,7 +194,7 @@ subtítulo, contraste e anel de destaque. Os dados completos continuam no HTML.
 | --- | --- | --- |
 | Scout | Ciano, antena, sensor e placa peitoral | Patrulha curta determinística; futuro SurgeShield |
 | Fixer | Coral, chifres, mochila, avental e botas | Respiração mais marcada; futuro RescueOps |
-| Trace | Roxo, corpo largo, lente translúcida e antena | Inclinação discreta; futuro FairTrace |
+| Trace | Roxo, corpo largo, lente translúcida e antena | Inclinação discreta; investigação LLM por solicitação no painel |
 | Runner | Menta, silhueta alta, bolsa e boné | Presença/retirada conforme marcos aplicados do pedido selecionado |
 | Coordinator | Azul, headset, microfone e tablet | Respiração mais lenta; nenhuma aprovação realizada |
 
@@ -326,7 +327,7 @@ real antes de prometer fluidez. Fallback 2D e movimento reduzido continuam dispo
   de consulta e seleção. Nenhuma meta de FPS foi certificada.
 - Só Chrome/Windows foi executado nesta entrega; outros browsers/GPUs e recursos
   assistivos precisam de homologação. Não é uma auditoria completa de acessibilidade.
-- Sem autenticação de produção, banco, uploads, ações, agentes, MCP, n8n, WebSockets
+- Sem autenticação de produção, banco, uploads, ações, outros agentes, MCP, n8n, WebSockets
   ou deploy. Servidores destinados apenas ao uso local com fixture sintética.
 - Snapshot é consistente dentro deste processo. Múltiplos workers podem carregar
   versões diferentes caso o arquivo mude; não há recarga/coordenador de versões.

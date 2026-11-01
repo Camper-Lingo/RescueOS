@@ -1,12 +1,12 @@
 # Handoff / estado do projeto
 
-**Estado atual:** Etapa 5A aprovada e commitada em `2a66164`; polimento visual 5B implementado e validado localmente, aguardando revisão técnica e visual independente (2026-10-30). Etapas 1–4 e contratos 5A preservados.
+**Estado atual:** Etapas 5A/5B aprovadas em `2a66164`/`4046192`. Segunda rodada de correção #007 concluída: argumentos e emissões da auditoria isolados, 298 aprovações e um skip anterior. Aguardando terceira revisão independente. Todas as avaliações desta rodada usam mocks por segurança térmica; núcleo aprovado preservado.
 
-**Próxima tarefa:** revisão independente da Etapa 5B, incluindo capturas e custo gráfico medido. Não fazer commit/push nem iniciar a Etapa 6 sem revisão do usuário.
+**Próxima tarefa:** terceira revisão #007: repetir mutações imediatas/tardias de argumentos, consistência HTTP/NDJSON e frontend, preservando as proteções anteriores. Não executar inferências reais, fazer commit/push ou avançar antes da revisão do usuário.
 
 **Evidências disponíveis:** PRD, arquitetura, gabarito das fixtures e decisões.
 
-**Não concluído:** n8n, agentes, MCP, deploy e medições de operações reais. API local e interface 3D demonstrativa descritas no registro da Etapa 5A abaixo.
+**Não concluído:** outros agentes, n8n, MCP, deploy e medições de operações reais. Trace é local, somente leitura, com hipóteses restritas e dados sintéticos; ver [TRACE.md](TRACE.md).
 
 **Arquivos criados:** `rescueos/__init__.py`, `rescueos/contracts.py`,
 `rescueos/ingest.py`, `tests/__init__.py`, `tests/test_ingest.py`.
@@ -684,3 +684,235 @@ Fallback/reduced motion preservados. Snapshot pequeno e estático, prefixos
 quadráticos e limites de publicação/concorrência continuam conforme ADRs 007/008.
 Pendente somente revisão técnica/visual independente e aceite do custo gráfico;
 não iniciar agentes, MCP, n8n, novo backend ou Etapa 6 nesta entrega.
+
+## Etapa 6A — Trace — 2026-10-31
+
+Base conferida: `D:\rescueos_starter`, HEAD `4046192 feat: polish immersive
+restaurant experience`, Etapa 5B aprovada conforme solicitação. README já possuía
+uma alteração de apresentação 5A/5B; não houve reset nem descarte. A retomada
+preservou código e testes parciais. Ponytail FULL ativo, sem novas dependências.
+
+Novos módulos `rescueos/tower/trace.py`, `trace_provider.py`; endpoint acrescentado
+em `tower/api.py`. Frontend: `api/trace.ts`, `components/TracePanel.tsx`, conexão em
+App, CSS e texto de Trace no roster. `validation.ts` somente exporta três helpers
+existentes, sem mudar a regra de IDs. package.json só amplia o comando de testes.
+Testes novos: `tests/test_trace.py`, avaliação opt-in `tests/trace_live.py`,
+`frontend/src/api/trace.test.ts`, `frontend/e2e/trace.spec.ts`. Documentos: README,
+CONTROL_TOWER, ADR-009, TRACE e este handoff.
+
+Fluxo real: LLM local escolhe plano JSON → quatro funções leem snapshot/quadro →
+LLM seleciona fatos → backend confere IDs e recompõe texto/fontes canônicos →
+NDJSON auditável. Não há recálculo de métricas, prosa factual livre, ações ou culpa.
+Hipóteses são perguntas restritas a métricas positivas, com validação dupla. Escopo
+fixado pelo backend, whitelist, limites, um slot por processo, erros seguros.
+Modelo: Ollama 0.34.4/qwen3:4b já instalado, sem cloud/pull/SDK. Inicialização local
+com NO_CLOUD e NOPRUNE, sem alteração de permissões ou dependências.
+
+Na retomada foi corrigido um trecho deslocado entre dois testes (NameError de
+`paths`, não defeito do produto). A avaliação real encontrou hipóteses indevidas
+em pedidos no prazo/cancelado; a validação as rejeitou. O schema agora oferece
+somente opções baseadas em métricas positivas; teste específico acrescentado.
+Ensaio anterior de ferramentas nativas tinha repetição/truncamento; JSON Schema
+com despacho explícito resolveu sem fingir chamadas ou descartar verificações.
+
+Resultados reais:
+
+- Antes de editar: Python 198 casos, 197 aprovados/um skip; Node 14/14;
+  strict/build exit 0. Os 24 testes Playwright imprimiram aprovação individual,
+  mas a execução inicial ficou no teardown, sem resumo/exit final confirmado.
+- `python -B -m unittest tests.test_trace -v` (executável da .venv): 23/23,
+  0,892 s. Cobre estados, conflitos, incompletude, referências, erros, injection,
+  escopo/IDs, timeout/limites, concorrência/cancelamento e contrato HTTP.
+- `.venv\Scripts\python.exe -B -m unittest discover -s tests -v`: 221 casos,
+  220 aprovados/um skip em 34,719 s. Skip anterior: symlink WinError 1314.
+  Log `out/stage6a-python.log`. Starlette avisa sobre adaptador HTTPX depreciado;
+  não houve instalação ou migração de dependências fora do escopo.
+- `npm.cmd test`: 19/19. `npm.cmd exec tsc -- --noEmit` e `npm.cmd run build`:
+  exit 0. Build mantém cena em chunk separado (~954 kB antes de gzip).
+- Novos Playwright isolados: 3/3 em 17,9 s. Primeira suíte completa: 25/27,
+  falhas nos testes anteriores de animação (transformação igual após 350 ms) e
+  mensagem de perda de WebGL (fallback funcional, mensagem de falha 3D genérica).
+  Ambos passaram em repetição isolada 2/2, sem alterar cena nem testes antigos.
+  Repetição completa final: 27/27, exit 0, 2,0 minutos. Logs completos em
+  `out/stage6a-playwright.log` e `out/stage6a-playwright-final.log`.
+- `.venv\Scripts\python.exe -B -m tests.trace_live`: exit 0, três pedidos reais.
+  ord-1001 22.724 ms/13 fatos; ord-1002 18.197 ms/13 fatos; ord-1003 7.978 ms/4 fatos.
+  Todos os fatos/fontes iguais aos retornados pelas ferramentas; cobertura de
+  estado+métricas disponíveis 6/6, 6/6 e 1/1. Não é nota de raciocínio causal.
+  Resultado `out/trace-live.json`.
+- Chrome/Windows real no app: `ord-1002`, Ollama/qwen3:4b, quatro ferramentas,
+  13 fatos/18 referências, 8.768 ms do agente, sem erro de página. Espera 13
+  baseada em evt-015/evt-018, linhas 15/18; cozinha 11 e entrega 13 confirmadas.
+  Prova `out/trace-browser-real.json`. Capturas desktop/mobile inspecionadas:
+  `out/trace-real-desktop.png`, `out/trace-real-mobile.png`, sem overflow horizontal.
+
+Limitações para revisão: igualdade de fatos canônicos protege o que é mostrado,
+não demonstra causas. Cobertura solicitada ao modelo não é garantida para qualquer
+entrada/modelo. Um slot local por processo, sem auth/quota global/persistência;
+cancelamento externo do Ollama é best-effort. Não expor em rede pública. Hipóteses
+padronizadas/limitadas e fixture pequena. SwiftShader não homologa FPS de GPU;
+aviso de driver AMD antigo impede prometer desempenho de inferência em GPU.
+A intermitência dos testes gráficos deve ser considerada na revisão.
+
+Conferência adicional: POST aceita as origens loopback do preview Vite 4173,
+além de dev 5173/API 8000; teste cobre os dois nomes locais, origem externa segue
+403. `git diff --check` sem erros. Núcleo 1–4, fixtures, snapshot/models/serializer,
+geometrias/animações/câmera, simulação, lockfile e testes antigos sem diff contra
+HEAD. Diff completo, incluindo untracked, em `out/stage6a-review.diff`.
+
+Após o ajuste de origem do preview, suíte Python reexecutada: mesmos 221 casos,
+220 aprovados/um skip em 29,468 s, exit 0 (`out/stage6a-python-final.log`).
+Total final entre Python/Node/Playwright: 266 aprovados e um skip conhecido,
+sem falhas na última execução de cada suíte. A primeira execução gráfica com
+duas falhas permanece registrada acima, sem ocultação ou alteração dos testes.
+
+Sem commit, push, MCP ou implementação de outros agentes. Parar para Review #007.
+
+## Correção da Code Review #007 — 2026-10-31
+
+Estado: três problemas corrigidos incrementalmente, suítes aprovadas, aguardando
+reavaliação independente. Base Git `4046192`, raiz `D:\rescueos_starter` confirmadas.
+Nenhum trabalho anterior descartado, inclusive arquivos ainda não rastreados.
+Ponytail FULL ativo. **Proibido executar inferência real nesta rodada**, por segurança
+térmica: não iniciado Ollama, não executado `tests.trace_live`, não carregados modelos.
+Antes das suítes foram inspecionados os caminhos: agente/Python com StubProvider ou
+MockTransport; POSTs Playwright interceptados com fixtures geradas usando stub.
+Suítes executadas sequencialmente, sem paralelismo extra ou alteração de hardware.
+
+RED, antes de modificar produção:
+
+- Cinco regressões Python executadas: 19 falhas de asserção, contando subtestes;
+  controle válido `1/3` aprovado. Ataque `999/1` e mutação tardia ainda eram publicados.
+  Comando selecionou os cinco métodos `test_review007_*` em `tests.test_trace.TraceTests`.
+  Log `out/review007-python-red.log`.
+- `node --test src/api/trace.test.ts`: 24 casos, oito aprovados/16 falhas, incluindo
+  histórico duplicado/inventado/reordenado, início/fim, argumentos extras, racionais
+  e associação de hipótese. Log `out/review007-node-red.log`.
+- Falha gráfica anterior comprovada na revisão: Scout sem mudança em 350 ms,
+  inclusive isolado; observação de 1,2 s mostrou movimento dos cinco. Nenhuma
+  alteração na implementação da animação foi necessária.
+
+Correções:
+
+1. `OrderTools` cria catálogo JSON imutável diretamente do snapshot/quadro, antes
+   das chamadas. `_read` formata as projeções existentes sem recálculo de negócio.
+   `call` entrega cópias novas. TraceAgent compara o retorno inteiro com o catálogo
+   capturado antes de publicar `tool_result` ou enviar ao modelo; divergência retorna
+   `TOOL_RESULT_MISMATCH` auditável sem expor o payload adulterado. Após igualdade,
+   usa uma cópia desacoplada para resistir a mutação tardia. Request congelado e
+   propriedade sem setter mantêm identidade/quadro fixos.
+2. Cliente mantém chamada ativa e registros observados. Confere nome, ordem,
+   argumentos, início/fim, resultado e histórico terminal inteiro; erro pendente
+   também exige correspondência de código/encerramento. Racionais estritos, sem
+   float; hipóteses somente na métrica positiva correspondente. `validation.ts`
+   apenas exporta o helper rational existente, sem mudar sua implementação.
+3. Teste 5B aguarda movimento real dos cinco com prazo limitado; reduced motion
+   é comparado após avanço de frames reais. Sem sleeps maiores, retries novos,
+   exclusão de asserções ou alteração da cena.
+
+GREEN e validação final:
+
+- `.venv\Scripts\python.exe -B -m unittest tests.test_trace -v`: 29/29, 0,782 s.
+  São seis métodos novos, com matriz adversarial: valor/texto/tipo/fato, evento/campo/
+  timestamp, origem/linha/hash, fontes incompletas, outro pedido/quadro, dados extras,
+  diagnóstico, mutação tardia e imutabilidade. Controle `1/3` exato preservado.
+- `.venv\Scripts\python.exe -B -m unittest discover -s tests -v`: 227 casos,
+  226 aprovados/um skip em 25,835 s; exit 0. Skip anterior symlink/WinError 1314.
+  Log `out/review007-python-final.log`.
+- `npm.cmd test`: 38/38; arquivo Node Trace 24/24. `npm.cmd exec tsc -- --noEmit`
+  e `npm.cmd run build`: exit 0. Nenhuma dependência instalada/atualizada.
+- `npm.cmd exec playwright test -- e2e/stage5b.spec.ts --grep 'five original mascots'`:
+  1/1, 11,5 s. `npm.cmd run test:e2e`: 27/27, 1,8 min, exit 0; log
+  `out/review007-playwright-final.log`. Inclui câmera/reset, cinco personagens,
+  replay/Runner, Error Boundaries, fallback, IDs especiais e Trace com stub.
+- Sondagem extra do backend → cliente → Chrome real com StubProvider: retorno
+  `999/1` bloqueado por `TOOL_RESULT_MISMATCH`, sem `trace-result` nem `999` no
+  histórico. Retry válido concluiu sem erro de página. Captura `out/review007-blocked.png`.
+- `git diff --check` sem erros. Fixture, núcleo 1–4, snapshot/models/serializer,
+  geometria/câmera/animações, simulação e lockfile sem diff contra HEAD. Snapshot
+  continua `7ecb72a85c690c845e4464fc791960ed6a5aeb3e1cbdd1106ffdabe4d8d4eaf6`:
+  20 eventos, 21 quadros, três pedidos, taxas 1/2 e 1/3 e métricas 13/11/13.
+
+Total final entre suítes: **291 aprovados, um skip conhecido, nenhuma falha**.
+Trace está incluído no total Python, sem dupla contagem. RED intencional preservado
+nos logs. A depreciação do adaptador HTTPX/Starlette continua como aviso anterior.
+
+Arquivos alterados nesta rodada: `rescueos/tower/trace.py`, `tests/test_trace.py`,
+`frontend/src/api/trace.ts`, `frontend/src/api/trace.test.ts`,
+`frontend/src/api/validation.ts`, `frontend/e2e/stage5b.spec.ts`, `docs/TRACE.md`
+e este HANDOFF. O protocolo `trace.1` ainda não aprovado foi endurecido: início exato,
+histórico consistente e erro de integridade; sem mudança dos GETs/schema de negócio.
+
+Diff somente desta correção: `out/review007-corrections.diff`; diff completo da
+Etapa 6A corrigida: `out/stage6a-after-review007.diff`. O diff anterior da revisão,
+`out/stage6a-review.diff`, foi preservado para comparação e reprodução RED.
+
+Próxima revisão: repetir testes mockados e sondar os retornos adulterados antes e
+depois da publicação, incluindo mutação tardia, além da correspondência do histórico
+e reduced motion. Reiniciar o backend para carregar a versão Python corrigida.
+Não executar o antigo script live nesta rodada: ele faz três investigações reais
+sequenciais. Resultados reais anteriores são históricos, não homologação desta
+versão. Persistem auditoria efêmera, slot por processo, ausência de auth de produção,
+dependência do snapshot/núcleo confiáveis e cancelamento externo best-effort.
+SwiftShader não homologa GPU física. Sem commit, push ou avanço à Etapa 6B.
+
+## Correção da Code Review #007 — rodada 2, 2026-10-31
+
+Raiz `D:\rescueos_starter`, base `4046192`; todas as alterações anteriores,
+incluindo untracked, preservadas. Ponytail FULL usado. A segunda revisão confirmou
+as três correções anteriores e encontrou compartilhamento dos argumentos entre
+ferramenta, `tool_started`, histórico e `tool_result`. A auditoria podia mudar para
+`ord-1001` numa investigação de `ord-1002`, inclusive após um resultado transmitido.
+
+Correção de produção restrita a `rescueos/tower/trace.py`: cópia do dicionário de
+argumentos na chamada e `deepcopy` no construtor dos eventos. Argumentos atualmente
+aceitam apenas `order_id` string; cópia superficial na entrada é suficiente para
+esse contrato. Eventos, fontes aninhadas e histórico terminal são snapshots
+desacoplados. Registros não são reparados posteriormente. Tentativa de executar
+com outro ID continua rejeitada pela ferramenta, preservando os argumentos
+originais no erro auditável. Catálogo canônico, escopo fixo e protocolo preservados.
+
+Antes de modificar produção, seis regressões Python foram executadas: uma passou
+(objetos/listas/argumentos extras proibidos), quatro testes unitários falharam e
+os dois subcasos do teste HTTP falharam: seis falhas de asserção em cinco métodos.
+Log `out/review007-round2-python-red.log`. O teste Node novo que consome streams
+da API com ferramentas mutadoras também falhou, com schema inválido:
+`out/review007-round2-node-red.log`. RED intencional mantido para revisão.
+
+Validação após a correção:
+
+- `.venv\Scripts\python.exe -B -m unittest tests.test_trace -v`: 35/35 em 0,904 s,
+  incluindo seis métodos novos. Log `out/review007-round2-trace-green.log`.
+- `.venv\Scripts\python.exe -B -m unittest discover -s tests -v`: 233 casos,
+  232 aprovados/um skip em 20,174 s; exit 0. Os 226 aprovados anteriores seguem
+  cobertos. Skip anterior de symlink/WinError 1314; aviso HTTPX/Starlette anterior.
+  Log `out/review007-round2-python-final.log`.
+- `node --test --test-name-pattern=round2 src/api/trace.test.ts`: 1/1;
+  `npm.cmd test`: 39/39 (um teste Node novo). O teste usa TestClient/StubProvider
+  e verifica aceitação dos dois streams e rejeição de histórico contraditório.
+- `npx.cmd tsc --noEmit` e `npm.cmd run build`: exit 0.
+- `npx.cmd playwright test`: 27/27 em 1,8 min, exit 0, sem retries ou alteração
+  dos testes gráficos. Log `out/review007-round2-playwright-final.log`.
+- Controle pré/pós-correção com relógio/UUID fixos: 13 eventos idênticos byte a
+  byte. Referência em `out/review007-round2-valid-before.json`.
+- Chrome real em 2D, streams da API com mutação imediata/tardia: conclusão com
+  métricas corretas e nenhum `ord-1001` na auditoria. Histórico deliberadamente
+  contraditório rejeitado; retry habilitado e zero erros de página. Streams em
+  `out/review007-round2-http-streams.json`; captura
+  `out/review007-round2-invalid-history.png`.
+
+Total principal: **298 aprovações, um skip, nenhuma falha**. Trace incluído no
+total Python, sem dupla contagem. API/Vite de teste iniciados com stub explícito;
+nenhuma chamada ao Ollama ou script live, inferência, benchmark, instalação ou
+alteração de hardware. Geometria/câmera/animações e frontend de produção intactos
+nesta rodada. Fixture/núcleo 1–4, snapshot, contratos e lockfile preservados.
+
+Arquivos desta rodada: `rescueos/tower/trace.py`, `tests/test_trace.py`,
+`frontend/src/api/trace.test.ts`, `docs/TRACE.md` e este HANDOFF.
+Diff incremental: `out/review007-round2-corrections.diff`; diff completo incluindo
+untracked: `out/stage6a-after-review007-round2.diff`. Artefatos e diffs das rodadas
+anteriores preservados. `git diff --check` sem erros.
+
+Próxima ação: terceira revisão independente. Auditoria ainda efêmera, um slot por
+processo, cancelamento externo best-effort e confiança no núcleo/snapshot. Novos
+argumentos aninhados exigirão rever a cópia de entrada. Sem commit, push ou 6B.

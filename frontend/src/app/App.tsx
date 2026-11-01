@@ -10,6 +10,7 @@ import OrderDetails from '../components/OrderDetails.tsx';
 import Timeline from '../components/Timeline.tsx';
 import FallbackWorld from '../components/FallbackWorld.tsx';
 import ErrorBoundary from '../components/ErrorBoundary.tsx';
+import TracePanel from '../components/TracePanel.tsx';
 
 const RestaurantScene = lazy(() => import('../scene/RestaurantScene.tsx'));
 let webgl: boolean | undefined;
@@ -89,7 +90,7 @@ function Experience({ bundle }: { bundle: Bundle }) {
           {sceneFailed || lostContext ? <button onClick={() => location.reload()}>Recarregar cena 3D</button>
             : <button onClick={() => setMode2d(!mode2d)}>{mode2d ? 'Voltar à vista 3D' : 'Usar vista 2D'}</button>}</div>
       </section>
-      <section className="crew"><div className="section-heading"><span className="eyebrow">Conheça a equipe</span><span className="tiny">Mascotes demonstrativos · sem execução de IA</span></div>
+      <section className="crew"><div className="section-heading"><span className="eyebrow">Conheça a equipe</span><span className="tiny">Trace por solicitação · demais mascotes demonstrativos</span></div>
         <div className="crew-list">{MONSTERS.map(character => <button key={character.id} aria-pressed={monster === character.id} className={monster === character.id ? 'active' : ''}
           onClick={() => { setMonster(monster === character.id ? null : character.id); setFocus(character.id === 'trace' ? 'incident' : character.id === 'fixer' ? 'kitchen' : character.id === 'runner' ? 'pickup' : 'command'); }}>
           <span className={`mini-monster ${character.id}`} style={{ background: character.color }}><i /><i /></span><strong>{character.name}</strong><small>{character.role}</small></button>)}</div>
@@ -100,6 +101,7 @@ function Experience({ bundle }: { bundle: Bundle }) {
       <div className="orders-heading"><span className="eyebrow">Seus pedidos</span><span className="count">{bundle.orders.orders.length}</span></div>
       <nav className="order-tabs" aria-label="Selecionar pedido">{bundle.orders.orders.map(candidate => <button key={candidate.order_id}
         aria-pressed={selected === candidate.order_id} className={selected === candidate.order_id ? 'active' : ''} onClick={() => selectOrder(candidate.order_id)}>{candidate.order_id}</button>)}</nav>
+      <TracePanel key={`trace-${selected}`} orderId={selected} replay={replay} frameIndex={cursor.index} available={!!order} active={monster === 'trace'} onEvent={showEvent} />
       <OrderDetails key={selected} order={order} selected={selected} known={bundle.orders.orders.some(candidate => candidate.order_id === selected)} events={replay.events} onEvent={showEvent} />
     </aside></div>
     <section className="audit"><details><summary>Diagnósticos do snapshot <span>{bundle.diagnostics.diagnostics.length}</span></summary>
@@ -107,7 +109,7 @@ function Experience({ bundle }: { bundle: Bundle }) {
       {!bundle.diagnostics.diagnostics.length && <p>Nenhum diagnóstico registrado neste arquivo.</p>}
       {bundle.diagnostics.diagnostics.map((diagnostic, index) => <details key={`${diagnostic.code}-${index}`}><summary>{diagnostic.code} · {diagnostic.event_id ?? diagnostic.order_id ?? 'Arquivo'}</summary><pre>{JSON.stringify(diagnostic, null, 2)}</pre></details>)}
     </details></section>
-    <footer><span>RescueOS <b>/</b> The Living Restaurant</span><p>Dados sintéticos. Movimentos de idle e patrulha são decorativos; estados e métricas vêm dos eventos. Nenhuma previsão, aprovação ou ação de IA é executada.</p>
+    <footer><span>RescueOS <b>/</b> The Living Restaurant</span><p>Dados sintéticos. Movimentos são decorativos; estados e métricas vêm dos eventos. Trace consulta evidências com IA local somente quando solicitado. Nenhuma ação corretiva é executada.</p>
       <span className="tiny">SOMENTE LEITURA · DEMO</span></footer>
     <span className="sr-only" aria-live="polite">{cursor.index} eventos exibidos. {order ? `${order.order_id}: ${order.status ?? 'indeterminado'}` : 'Sem projeção de pedido'}</span>
   </>;

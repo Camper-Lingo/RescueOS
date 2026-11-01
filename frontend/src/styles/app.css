@@ -606,6 +606,21 @@ button.active {
   border-color:#91bea2;
   color:#e0f3e7
 }
+.trace-panel {
+  padding:12px 18px;
+  border-bottom:1px solid var(--line)
+}
+.trace-toggle { width:100%; border-color:#80719b; background:#38354b }
+.trace-content { display:grid; gap:12px; padding-top:14px; font-size:12px; overflow-wrap:anywhere }
+.trace-content h3 { color:#d5c7ed }
+.trace-content ul { padding-left:18px; margin:0 }
+.trace-content li { margin-bottom:12px }
+.trace-context { color:#b9c7c9; font-size:11px }
+.trace-error { color:#ffb8a8 }
+.trace-source { padding:6px 0; border-bottom:1px solid var(--line); font-size:10px }
+.trace-source button { padding:3px 5px }
+.trace-source time,.trace-source small { display:block; margin-top:3px }
+.trace-content pre { max-height:300px; overflow:auto }
 .order-detail {
   padding:18px
 }

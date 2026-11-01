@@ -2,18 +2,23 @@
 
 from contextlib import asynccontextmanager
 import json
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from pydantic import ValidationError
 
 from .models import (DiagnosticsResponse, HealthResponse, OrderResponse,
                      OrdersResponse, OverviewResponse, ReplayResponse)
 from .snapshot import DEMO_FIXTURE, load_snapshot
 from .serialization import EscapedJSONResponse
+from .trace import InvestigationRequest, OrderTools, TraceAgent
+from .trace_provider import OllamaProvider, TraceError
 
 
-def create_app(fixture_path: Path = DEMO_FIXTURE):
+def create_app(fixture_path: Path = DEMO_FIXTURE, *, trace_provider=None):
     @asynccontextmanager
     async def lifespan(application):
         snapshot = load_snapshot(fixture_path)
@@ -27,12 +32,14 @@ def create_app(fixture_path: Path = DEMO_FIXTURE):
             validated = OrderResponse.model_validate(snapshot.payload("order:" + order["order_id"]))
             EscapedJSONResponse(validated.model_dump(mode="json"))
         application.state.snapshot = snapshot
+        application.state.trace = TraceAgent(trace_provider if trace_provider is not None else
+                                              OllamaProvider(os.environ.get("RESCUEOS_TRACE_MODEL", "qwen3:4b")))
         yield
 
     application = FastAPI(title="RescueOS · The Living Restaurant", version="1.0", lifespan=lifespan,
                           default_response_class=EscapedJSONResponse)
     application.add_middleware(CORSMiddleware, allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
-                               allow_methods=["GET"], allow_headers=["Content-Type"])
+                               allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
     def payload(request, name):
         return request.app.state.snapshot.payload(name)
@@ -81,6 +88,35 @@ def create_app(fixture_path: Path = DEMO_FIXTURE):
     @application.get("/api/v1/replay", response_model=ReplayResponse)
     def replay(request: Request):
         return payload(request, "replay")
+
+    @application.post("/api/v1/trace/investigate")
+    async def investigate(request: Request):
+        origin = request.headers.get("origin")
+        if origin is not None and origin not in {
+            "http://127.0.0.1:5173", "http://localhost:5173", "http://127.0.0.1:4173", "http://localhost:4173",
+            "http://127.0.0.1:8000", "http://localhost:8000"
+        }:
+            raise HTTPException(status_code=403, detail="Origem não autorizada.")
+        raw = bytearray()
+        async for chunk in request.stream():
+            raw.extend(chunk)
+            if len(raw) > 16384:
+                raise HTTPException(status_code=413, detail="Solicitação excede o limite de Trace.")
+        try:
+            body = InvestigationRequest.model_validate(json.loads(raw))
+            tools = OrderTools(request.app.state.snapshot, body)
+        except (ValidationError, ValueError, RecursionError):
+            raise HTTPException(status_code=422, detail="Solicitação de investigação inválida.") from None
+        except TraceError as exc:
+            status = {"ORDER_NOT_FOUND": 404, "SNAPSHOT_MISMATCH": 409}.get(exc.code, 422)
+            raise HTTPException(status_code=status, detail=exc.code) from None
+
+        async def lines():
+            async for event in request.app.state.trace.stream(tools):
+                yield json.dumps(event, ensure_ascii=True, allow_nan=False, separators=(",", ":")) + "\n"
+
+        return StreamingResponse(lines(), media_type="application/x-ndjson",
+                                 headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
 
     return application
 

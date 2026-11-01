@@ -8,6 +8,7 @@ async function sceneState(page: Page) {
     const { _roots } = await import(path);
     const state = _roots.get(document.querySelector('canvas')).store.getState();
     return {
+      frame: state.gl.info.render.frame,
       camera: [...state.camera.position.toArray(), ...state.camera.quaternion.toArray(), ...state.controls.target.toArray(), state.camera.zoom],
       crew: ['scout', 'fixer', 'trace', 'runner', 'coordinator'].map(id => {
         const root = state.scene.getObjectByName(`mascot-${id}`);
@@ -24,15 +25,17 @@ test('five original mascots animate, reduced motion freezes their transforms and
   await page.goto('/');
   await expect(page.locator('canvas')).toBeVisible();
   const before = await sceneState(page);
-  await page.waitForTimeout(350);
-  const animated = await sceneState(page);
-  for (let index = 0; index < before.crew.length; index++) {
-    expect(animated.crew[index].transforms, before.crew[index].id).not.toEqual(before.crew[index].transforms);
-  }
+  await expect.poll(async () => {
+    const animated = await sceneState(page);
+    return animated.crew.filter((character, index) => JSON.stringify(character.transforms)
+      !== JSON.stringify(before.crew[index].transforms)).map(character => character.id);
+  }, { timeout: 10_000, message: 'Todos os cinco mascotes devem mudar transformações reais dentro do prazo.' })
+    .toEqual(before.crew.map(character => character.id));
   await page.getByLabel('Reduzir movimento').check();
-  await page.waitForTimeout(180);
+  const toggled = await sceneState(page);
+  await expect.poll(async () => (await sceneState(page)).frame).toBeGreaterThan(toggled.frame + 1);
   const reduced = await sceneState(page);
-  await page.waitForTimeout(350);
+  await expect.poll(async () => (await sceneState(page)).frame).toBeGreaterThan(reduced.frame + 1);
   expect((await sceneState(page)).crew).toEqual(reduced.crew);
   for (const name of ['SCOUT', 'FIXER', 'TRACE', 'RUNNER', 'COORDINATOR']) {
     const button = page.locator('.crew-list').getByRole('button', { name: new RegExp(name) });

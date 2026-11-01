@@ -604,3 +604,25 @@ Falhas do terminal retornam 1, inclusive quando os relatórios já foram publica
 não revertem arquivos publicados nem apagam o erro original de publicação.
 Mensagens de sucesso só são tentadas depois de o writer concluir sem erro.
 Retornos normais 0 e 2, contratos de negócio e limites de atomicidade permanecem.
+
+## ADR-009 — Trace: LLM local com fatos verificáveis (Etapa 6A)
+
+2026-10-31. O primeiro agente usa Ollama já instalado e quatro funções Python de
+leitura do snapshot. Sem SDK, MCP, novas dependências ou alterações no núcleo.
+Plano JSON escolhe ferramentas; backend vincula order_id/snapshot/quadro. Resposta
+JSON escolhe IDs de fatos efetivamente retornados. Texto, valores exatos e fontes
+são canônicos; não publicamos prosa factual arbitrária do modelo como verificada.
+Hipóteses são perguntas restritas a intervalos positivos, nunca causa ou culpa.
+
+POST `/api/v1/trace/investigate` publica NDJSON `trace.1` com progresso real, UUID,
+duração, chamadas/resultados e erro terminal. GETs/schema 1.0 permanecem iguais.
+Quatro chamadas, cinco turnos, 120 s e um slot por processo; limites de payload.
+Eventos aceitos são do prefixo solicitado; conflitos continuam auditoria estática
+do arquivo completo (ADR-008). IDs não são normalizados. Stub só por injeção em
+testes, explicitamente rotulado; não há fallback de produção para resposta falsa.
+
+Homologação local: qwen3:4b/Ollama 0.34.4, três pedidos da fixture e investigação
+real pelo navegador. Escopo deliberado: seleção auditável de fatos/perguntas, não
+diagnóstico causal livre. Sem persistência da auditoria, autenticação ou garantia
+de cancelamento do cálculo externo; apenas uso local sintético. Contrato, comandos,
+avaliações e riscos detalhados em [TRACE.md](TRACE.md). Aguardar Code Review #007.

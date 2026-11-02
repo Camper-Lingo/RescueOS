@@ -11,6 +11,8 @@ import Timeline from '../components/Timeline.tsx';
 import FallbackWorld from '../components/FallbackWorld.tsx';
 import ErrorBoundary from '../components/ErrorBoundary.tsx';
 import TracePanel from '../components/TracePanel.tsx';
+import ScoutPanel from '../components/ScoutPanel.tsx';
+import type { ScoutAlert } from '../api/scout.ts';
 
 const RestaurantScene = lazy(() => import('../scene/RestaurantScene.tsx'));
 let webgl: boolean | undefined;
@@ -33,6 +35,8 @@ function Experience({ bundle }: { bundle: Bundle }) {
   const controller = useReplay(replay), { frame, cursor, jump } = controller;
   const [selected, setSelected] = useState(() => new URLSearchParams(location.search).get('order') ?? (bundle.orders.orders.some(order => order.order_id === 'ord-1002') ? 'ord-1002' : bundle.orders.orders[0]?.order_id ?? ''));
   const [monster, setMonster] = useState<MonsterId | null>(null), [focus, setFocus] = useState<Zone | null>(null);
+  const [alert, setAlert] = useState<ScoutAlert | null>(null);
+  const [traceRequest, setTraceRequest] = useState(0);
   const [reduced, setReduced] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [mode2d, setMode2d] = useState(() => new URLSearchParams(location.search).get('view') === '2d');
   const [lostContext, setLostContext] = useState(false);
@@ -49,7 +53,7 @@ function Experience({ bundle }: { bundle: Bundle }) {
   }, []);
   const order = frame.orders.find(candidate => candidate.order_id === selected);
   const selectOrder = (id: string) => {
-    setSelected(id); setMonster(null);
+    setSelected(id); setMonster(null); setAlert(null);
     const current = frame.orders.find(candidate => candidate.order_id === id);
     if (current) setFocus(visualOrder(current).zone);
   };
@@ -57,7 +61,20 @@ function Experience({ bundle }: { bundle: Bundle }) {
     const index = replay.events.findIndex(event => event.event_id === id);
     if (index >= 0) { jump(index + 1); setFocus(eventZone(replay.events[index].type)); }
   };
+  const selectMonster = (id: MonsterId) => {
+    setMonster(monster === id ? null : id);
+    setFocus(id === 'scout' ? null : id === 'trace' ? 'incident' : id === 'fixer' ? 'kitchen' : id === 'runner' ? 'pickup' : 'command');
+  };
+  const exploreAlert = (item: ScoutAlert | null) => {
+    setAlert(item);
+    if (item?.order_id) setSelected(item.order_id);
+    if (item) setFocus(item.zone);
+  };
+  const navigateAlert = (item: ScoutAlert, eventId: string) => {
+    showEvent(eventId); exploreAlert(item);
+  };
   const fallback = <FallbackWorld orders={frame.orders} selected={selected} onOrder={selectOrder}
+    alerted={alert?.order_id ?? null}
     reason={sceneFailed ? 'Não foi possível carregar a cena 3D. Continue usando os dados e controles abaixo.'
       : !available3d || lostContext ? 'WebGL indisponível neste dispositivo. A navegação e as evidências continuam disponíveis.' : 'Alternativa acessível selecionada.'} />;
   const roles = MONSTERS.find(candidate => candidate.id === monster);
@@ -81,7 +98,8 @@ function Experience({ bundle }: { bundle: Bundle }) {
           {(['kitchen', 'pickup', 'incident', 'command'] as Zone[]).map(zone => <button key={zone} aria-pressed={focus === zone} className={focus === zone ? 'active' : ''}
             onClick={() => setFocus(zone)}>{ZONE_NAMES[zone]}</button>)}</nav>
         <div className={`scene-container ${use2d ? 'fallback-active' : ''}`}>{use2d ? fallback : <ErrorBoundary fallback={fallback} onError={sceneError}><Suspense fallback={<div className="scene-loading">Preparando o mundo 3D…</div>}>
-          <RestaurantScene orders={frame.orders} selected={selected} selectedMonster={monster} onOrder={selectOrder} onMonster={setMonster}
+          <RestaurantScene orders={frame.orders} selected={selected} selectedMonster={monster} onOrder={selectOrder} onMonster={selectMonster}
+            alerted={alert?.order_id ?? null}
             focus={focus} onFocus={setFocus} reduced={reduced} events={replay.events} diagnostics={bundle.diagnostics.diagnostics.length}
             resetRequest={resetRequest} onContextLost={contextLost} /></Suspense></ErrorBoundary>}
           <div className="world-caption"><span className="world-dot" /> {frame.orders.length} pedidos neste instante <span>Arraste para orbitar · scroll para aproximar</span></div>
@@ -90,18 +108,22 @@ function Experience({ bundle }: { bundle: Bundle }) {
           {sceneFailed || lostContext ? <button onClick={() => location.reload()}>Recarregar cena 3D</button>
             : <button onClick={() => setMode2d(!mode2d)}>{mode2d ? 'Voltar à vista 3D' : 'Usar vista 2D'}</button>}</div>
       </section>
-      <section className="crew"><div className="section-heading"><span className="eyebrow">Conheça a equipe</span><span className="tiny">Trace por solicitação · demais mascotes demonstrativos</span></div>
+      <section className="crew"><div className="section-heading"><span className="eyebrow">Conheça a equipe</span><span className="tiny">Scout e Trace por solicitação · demais mascotes demonstrativos</span></div>
         <div className="crew-list">{MONSTERS.map(character => <button key={character.id} aria-pressed={monster === character.id} className={monster === character.id ? 'active' : ''}
-          onClick={() => { setMonster(monster === character.id ? null : character.id); setFocus(character.id === 'trace' ? 'incident' : character.id === 'fixer' ? 'kitchen' : character.id === 'runner' ? 'pickup' : 'command'); }}>
+          onClick={() => selectMonster(character.id)}>
           <span className={`mini-monster ${character.id}`} style={{ background: character.color }}><i /><i /></span><strong>{character.name}</strong><small>{character.role}</small></button>)}</div>
         {roles && <div className="crew-description" role="status"><strong>{roles.name}</strong><span>{roles.description}</span><button aria-label="Fechar papel do mascote" onClick={() => setMonster(null)}>×</button></div>}
       </section>
+      <ScoutPanel bundle={bundle} frameIndex={cursor.index} selectedOrder={selected} active={monster === 'scout'}
+        onExplore={exploreAlert} onNavigate={navigateAlert} onTrace={(item, index) => {
+          exploreAlert(item); jump(index); setMonster('trace'); setFocus('incident'); setTraceRequest(n => n + 1);
+        }} />
       <Timeline replay={replay} {...controller} />
     </main><aside className="detail-column" aria-label="Pedidos e evidências">
       <div className="orders-heading"><span className="eyebrow">Seus pedidos</span><span className="count">{bundle.orders.orders.length}</span></div>
       <nav className="order-tabs" aria-label="Selecionar pedido">{bundle.orders.orders.map(candidate => <button key={candidate.order_id}
         aria-pressed={selected === candidate.order_id} className={selected === candidate.order_id ? 'active' : ''} onClick={() => selectOrder(candidate.order_id)}>{candidate.order_id}</button>)}</nav>
-      <TracePanel key={`trace-${selected}`} orderId={selected} replay={replay} frameIndex={cursor.index} available={!!order} active={monster === 'trace'} onEvent={showEvent} />
+      <TracePanel key={`trace-${selected}`} orderId={selected} replay={replay} frameIndex={cursor.index} available={!!order} active={monster === 'trace'} openRequest={traceRequest} onEvent={showEvent} />
       <OrderDetails key={selected} order={order} selected={selected} known={bundle.orders.orders.some(candidate => candidate.order_id === selected)} events={replay.events} onEvent={showEvent} />
     </aside></div>
     <section className="audit"><details><summary>Diagnósticos do snapshot <span>{bundle.diagnostics.diagnostics.length}</span></summary>
@@ -109,7 +131,7 @@ function Experience({ bundle }: { bundle: Bundle }) {
       {!bundle.diagnostics.diagnostics.length && <p>Nenhum diagnóstico registrado neste arquivo.</p>}
       {bundle.diagnostics.diagnostics.map((diagnostic, index) => <details key={`${diagnostic.code}-${index}`}><summary>{diagnostic.code} · {diagnostic.event_id ?? diagnostic.order_id ?? 'Arquivo'}</summary><pre>{JSON.stringify(diagnostic, null, 2)}</pre></details>)}
     </details></section>
-    <footer><span>RescueOS <b>/</b> The Living Restaurant</span><p>Dados sintéticos. Movimentos são decorativos; estados e métricas vêm dos eventos. Trace consulta evidências com IA local somente quando solicitado. Nenhuma ação corretiva é executada.</p>
+    <footer><span>RescueOS <b>/</b> The Living Restaurant</span><p>Dados sintéticos. Movimentos são decorativos; estados e métricas vêm dos eventos. Scout e Trace consultam dados com IA local somente quando solicitado. Nenhuma ação corretiva é executada.</p>
       <span className="tiny">SOMENTE LEITURA · DEMO</span></footer>
     <span className="sr-only" aria-live="polite">{cursor.index} eventos exibidos. {order ? `${order.order_id}: ${order.status ?? 'indeterminado'}` : 'Sem projeção de pedido'}</span>
   </>;

@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import AsyncMock, patch
+from uuid import UUID
 
 import httpx
 from fastapi.testclient import TestClient
@@ -255,23 +256,30 @@ class TraceTests(unittest.IsolatedAsyncioTestCase):
 
 
     async def test_review007_original_999_tool_attack_is_rejected_before_publication(self):
-        tools = self.tools()
-        original = tools.call
-        async def corrupted(name, args):
-            result = await original(name, args)
-            if name == "get_order_metrics":
-                fact = next(f for f in result["facts"] if f["fact_id"] == "metric.delivery_delay")
-                fact.update(value={"numerator": "999", "denominator": "1"},
-                            text="Atraso na entrega: 999 minutes.", sources=[tools.reference("evt-004")])
-            return result
-        tools.call = corrupted
-        events = await self.run_agent(tools)
-        self.assertEqual("error", events[-1]["type"])
-        self.assertEqual("TOOL_RESULT_MISMATCH", events[-1]["code"])
-        self.assertEqual("get_order_metrics", events[-1]["tool_history"][-1]["name"])
-        self.assertEqual("TOOL_RESULT_MISMATCH", events[-1]["tool_history"][-1]["error_code"])
-        self.assertNotIn("result", events[-1]["tool_history"][-1])
-        self.assertNotIn("999", json.dumps(events))
+        for run_id in ("bbfe1dea-da60-4436-999b-6423a7f5a324", "11111111-1111-4111-8111-111111111111"):
+            with self.subTest(run_id=run_id), patch("rescueos.tower.trace.uuid4", return_value=UUID(run_id)):
+                tools = self.tools()
+                expected = {name: await tools.call(name, tools.arguments) for name in TOOL_NAMES}
+                original = tools.call
+                async def corrupted(name, args):
+                    result = await original(name, args)
+                    if name == "get_order_metrics":
+                        fact = next(f for f in result["facts"] if f["fact_id"] == "metric.delivery_delay")
+                        fact.update(value={"numerator": "999", "denominator": "1"},
+                                    text="Atraso na entrega: 999 minutes.", sources=[tools.reference("evt-004")])
+                    return result
+                tools.call = corrupted
+                events = await self.run_agent(tools)
+                self.assertEqual("error", events[-1]["type"])
+                self.assertEqual(run_id, events[-1]["run_id"])
+                self.assertEqual("TOOL_RESULT_MISMATCH", events[-1]["code"])
+                self.assertEqual("get_order_metrics", events[-1]["tool_history"][-1]["name"])
+                self.assertEqual("TOOL_RESULT_MISMATCH", events[-1]["tool_history"][-1]["error_code"])
+                self.assertNotIn("result", events[-1]["tool_history"][-1])
+                self.assertFalse(any(e["type"] == "completed" for e in events))
+                for event in events:
+                    if event["type"] == "tool_result":
+                        self.assertEqual(expected[event["name"]], event["result"])
 
     async def test_review007_every_fact_field_is_bound_to_the_snapshot(self):
         changes = {
@@ -343,29 +351,37 @@ class TraceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual({"numerator": "1", "denominator": "3"}, delay["value"])
 
     async def test_review007_returned_objects_cannot_be_mutated_after_validation(self):
-        tools = self.tools()
-        original = tools.call
-        returned = []
-        async def captured(name, args):
-            result = await original(name, args)
-            returned.append(result)
-            return result
-        tools.call = captured
-        provider = StubProvider()
-        chat = provider.chat
-        async def mutate_later(messages, schema):
-            if schema["title"] == "Draft":
-                for result in returned:
-                    for fact in result["facts"]:
-                        if fact["fact_id"] == "metric.delivery_delay":
-                            fact.update(value={"numerator": "999", "denominator": "1"}, text="late mutation")
-            return await chat(messages, schema)
-        provider.chat = mutate_later
-        result = (await self.run_agent(tools, provider))[-1]
-        self.assertEqual("completed", result["type"])
-        delay = next(f for f in result["facts"] if f["fact_id"] == "metric.delivery_delay")
-        self.assertEqual({"numerator": "13", "denominator": "1"}, delay["value"])
-        self.assertNotIn("999", json.dumps(result))
+        for run_id in ("bbfe1dea-da60-4436-999b-6423a7f5a324", "11111111-1111-4111-8111-111111111111"):
+            with self.subTest(run_id=run_id), patch("rescueos.tower.trace.uuid4", return_value=UUID(run_id)):
+                tools = self.tools()
+                expected = {name: await tools.call(name, tools.arguments) for name in TOOL_NAMES}
+                facts = {f["fact_id"]: f for r in expected.values() for f in r["facts"]}
+                original = tools.call
+                returned = []
+                async def captured(name, args):
+                    result = await original(name, args)
+                    returned.append(result)
+                    return result
+                tools.call = captured
+                provider = StubProvider()
+                chat = provider.chat
+                async def mutate_later(messages, schema):
+                    if schema["title"] == "Draft":
+                        for result in returned:
+                            for fact in result["facts"]:
+                                if fact["fact_id"] == "metric.delivery_delay":
+                                    fact.update(value={"numerator": "999", "denominator": "1"}, text="late mutation")
+                    return await chat(messages, schema)
+                provider.chat = mutate_later
+                result = (await self.run_agent(tools, provider))[-1]
+                self.assertEqual("completed", result["type"])
+                self.assertEqual(run_id, result["run_id"])
+                delay = next(f for f in result["facts"] if f["fact_id"] == "metric.delivery_delay")
+                self.assertEqual({"numerator": "13", "denominator": "1"}, delay["value"])
+                for fact in result["facts"]:
+                    self.assertEqual(facts[fact["fact_id"]], fact)
+                for record in result["tool_history"]:
+                    self.assertEqual(expected[record["name"]], record["result"])
 
     def test_review007_scope_and_canonical_catalog_are_immutable(self):
         tools = self.tools()

@@ -626,3 +626,62 @@ real pelo navegador. Escopo deliberado: seleção auditável de fatos/perguntas,
 diagnóstico causal livre. Sem persistência da auditoria, autenticação ou garantia
 de cancelamento do cálculo externo; apenas uso local sintético. Contrato, comandos,
 avaliações e riscos detalhados em [TRACE.md](TRACE.md). Aguardar Code Review #007.
+
+## ADR-010 — Scout canônico e exploração guiada (Etapa 6B)
+
+2026-11-01. A Etapa 6A foi aprovada em `af983ee`. Scout reutiliza o provedor e o
+executor seguro do Trace, com pontos de extensão pequenos para whitelist, schemas,
+visão do modelo e composição da resposta. Leitura/argumentos e transporte/auditoria
+NDJSON são compartilhados; validações específicas dos agentes permanecem locais.
+O formato `trace.1` e GETs 1.0 continuam compatíveis. Scout publica `scout.1` em
+POST `/api/v1/scout/analyze`, fixando snapshot/quadro, sem escopo arbitrário.
+
+Três ferramentas consultam resumo, pedidos e alertas. Regras usam métricas e
+integridade existentes, sem duplicar cálculos do núcleo. Catálogo JSON imutável
+independente de `call`, comparação integral e cópias de argumentos/emissões
+preservam as proteções da #007. O modelo seleciona ferramentas, destaques e foco
+da explicação; textos factuais são controlados, e nenhum alerta canônico é omitido
+por falta de seleção. Não se publicam prosa livre, previsões ou atribuições de culpa.
+
+Threshold de espera demonstrativo: inteiro 0–120 minutos, padrão 10, via
+`RESCUEOS_SCOUT_WAIT_MINUTES` ou configuração da factory. Somente espera concluída
+e disponível estritamente maior que o limite gera alerta. Cancelamento confiável
+é informação, não falha. Métricas independentes sobrevivem a limites de evidência.
+Conflitos mantêm diagnósticos completos e todas as origens; sem projeção, geram
+aviso global sem pedido, evento ou âncora artificial. Auditoria de conflitos é
+estática do arquivo, como no ADR-008; eventos aplicados respeitam o prefixo temporal.
+
+Execução somente por clique: três chamadas, quatro turnos, 120 s e slot compartilhado
+com Trace por processo. Cancelamento continua best-effort no provedor externo.
+Cliente verifica catálogo/fontes contra o bundle e histórico contra emissões reais;
+EOF válido precede publicação. Troca de contexto invalida callbacks pendentes.
+Análises concluídas ficam fixadas no quadro original, com aviso durante exploração.
+
+Cartões selecionam pedido e zona lógica quando conhecida; passos usam eventos reais
+do replay, sem nova IA. Handoff abre Trace no pedido/quadro analisado e exige outra
+ação para executar. Resumo do Trace deriva de fatos canônicos, com conteúdo técnico
+integral recolhido. Não há comunicação autônoma entre agentes nem ação corretiva.
+
+Nenhuma dependência ou alteração das Etapas 1–4, fixtures, geometrias dos mascotes
+ou lockfile. Testes somente com stubs explícitos por segurança térmica; conexão ao
+adaptador real implementada, mas Scout ainda não homologado com Ollama real.
+Auditoria efêmera, confiança no núcleo/snapshot, ausência de distribuição e limites
+do futuro simulador documentados em [SCOUT.md](SCOUT.md). Aguardar revisão #008.
+
+### Correção #008 — catálogo independente e destaque visível
+
+O cliente obtém a referência completa em GET `/api/v1/scout/catalog` antes de
+receber NDJSON. O GET reutiliza `ScoutTools` e sua política fixa, mas não chama
+`call` nem o provedor. Escopo estrito, cópia do JSON canônico e `no-store`.
+Cliente verifica condições/referências contra o bundle e igualdade integral com
+essa referência; conclusão e histórico mutuamente consistentes não bastam.
+Explicações finais só admitem os três textos controlados. Modelos HTTP existentes
+preenchem os campos padrão de diagnósticos, sem duplicar cálculos do núcleo.
+Completude/textos continuam dependendo do backend confiável, sem assinaturas ou
+proteção contra comprometimento coordenado do transporte/servidor.
+
+O destaque é um único anel em torno da face superior do pacote, local y=0,2
+(pacote tem meia-altura 0,185), com profundidade normal. Evita o piso/oclusão do
+anel inferior e geometrias sobrepostas para seleção+Scout. Visibilidade é testada
+pelos pixels finais do WebGL, com controle de ruído e região projetada, além de
+seleção, posições de replay, câmeras e mobile. Sem alteração de mascotes/câmera.

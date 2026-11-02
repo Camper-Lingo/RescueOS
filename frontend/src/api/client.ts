@@ -2,7 +2,7 @@ import type { Bundle, OrderResponse } from '../types/api.ts';
 import { ApiError, validateBundle, validateOrderResponse } from './validation.ts';
 export { ApiError, validateBundle } from './validation.ts';
 
-async function getJson(path: string, signal: AbortSignal | undefined, fetcher: typeof fetch): Promise<unknown> {
+export async function getJson(path: string, signal: AbortSignal | undefined, fetcher: typeof fetch): Promise<unknown> {
   let response: Response;
   try { response = await fetcher(`/api/v1/${path}`, { signal }); }
   catch (error) {

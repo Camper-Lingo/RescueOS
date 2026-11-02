@@ -54,7 +54,28 @@ def _json(value):
     return json.dumps(value, ensure_ascii=True, separators=(",", ":"), allow_nan=False, sort_keys=True)
 
 
-class OrderTools:
+class ReadOnlyTools:
+    @property
+    def request(self):
+        return self._request
+
+    @property
+    def arguments(self):
+        return self.request.model_dump()
+
+    async def call(self, name, arguments):
+        try:
+            valid = isinstance(arguments, dict) and _json(arguments) == _json(self.arguments)
+        except (TypeError, ValueError, RecursionError):
+            valid = False
+        if name not in self.tool_names or not valid:
+            raise TraceError("TOOL_NOT_ALLOWED")
+        return json.loads(self._canonical_results[name])
+
+
+class OrderTools(ReadOnlyTools):
+    tool_names = TOOL_NAMES
+
     def __init__(self, snapshot, request):
         self._request = request
         replay = snapshot.payload("replay")
@@ -74,18 +95,13 @@ class OrderTools:
         self._canonical_results = MappingProxyType({name: _json(self._read(name)) for name in TOOL_NAMES})
 
     @property
-    def request(self):
-        return self._request
+    def arguments(self):
+        return {"order_id": self.request.order_id}
 
     def reference(self, event_id, field="occurred_at"):
         event = self.catalog[event_id]
         return {"event_id": event_id, "event_type": event["type"], "field": field,
                 "timestamp": event["occurred_at"], "origins": event["origins"]}
-
-    async def call(self, name, arguments):
-        if name not in TOOL_NAMES or arguments != {"order_id": self.request.order_id}:
-            raise TraceError("TOOL_NOT_ALLOWED")
-        return json.loads(self._canonical_results[name])
 
     def _read(self, name):
         order = self.order
@@ -146,18 +162,46 @@ def verified_answer(draft, results):
 
 
 class TraceAgent:
-    def __init__(self, provider, *, timeout=120, max_calls=4, max_turns=5):
+    schema_version, tool_names = "trace.1", TOOL_NAMES
+    plan_model, draft_model = ToolPlan, Draft
+    system, final, task = SYSTEM, FINAL, "Consulte as quatro ferramentas."
+    answer = staticmethod(verified_answer)
+
+    def __init__(self, provider, *, timeout=120, max_calls=4, max_turns=5, lock=None):
         self.provider = provider
         self.timeout, self.max_calls, self.max_turns = timeout, max_calls, max_turns
-        self.lock = asyncio.Lock()
+        self.lock = lock if lock is not None else asyncio.Lock()
+
+    def final_schema(self, results, messages):
+        schema = self.draft_model.model_json_schema()
+        positive = {f["fact_id"] for r in results for f in r["facts"]
+                    if f["kind"] == "metric" and int(f["value"]["numerator"]) > 0}
+        allowed = [code for code, key in (("kitchen_timing", "metric.kitchen_delay"),
+                   ("courier_wait", "metric.courier_waiting_time")) if key in positive]
+        hypotheses = schema["properties"]["hypothesis_checks"]
+        if allowed:
+            hypotheses["items"]["enum"] = allowed
+        else:
+            hypotheses["maxItems"] = 0
+        messages.append({"role": "user", "content": _json({"allowed_hypothesis_checks": allowed})})
+        return schema
+
+    @staticmethod
+    def model_view(result):
+        return {"facts": [{"fact_id": f["fact_id"], "text": f["text"],
+                           "references": [{"event_id": s["event_id"], "field": s["field"]} for s in f["sources"]]}
+                          for f in result["facts"]], "unknowns": result["unknowns"],
+                "evidence": result.get("evidence", []),
+                "diagnostics": [{"code": d["code"], "event_id": d.get("event_id"),
+                                 "conflict_event_ids": d.get("conflict_event_ids", [])}
+                                for d in result.get("inconsistencies", []) + result.get("ingestion_conflicts", [])]}
 
     async def stream(self, tools):
         started = monotonic()
         history, results, used = [], [], set()
         request, canonical = tools.request, tools._canonical_results
-        base = {"schema_version": "trace.1", "run_id": str(uuid4()),
-                "snapshot_id": request.snapshot_id, "order_id": request.order_id,
-                "frame_index": request.frame_index, "provider": self.provider.kind,
+        base = {"schema_version": self.schema_version, "run_id": str(uuid4()),
+                **request.model_dump(), "provider": self.provider.kind,
                 "model": self.provider.model, "mode": "test" if self.provider.kind == "test" else "llm"}
 
         def event(kind, **data):
@@ -173,26 +217,17 @@ class TraceAgent:
                 async with asyncio.timeout(self.timeout):
                     yield event("generating", phase="checking_provider")
                     await self.provider.check()
-                    messages = [{"role": "system", "content": SYSTEM},
-                                {"role": "user", "content": _json({"order_id": request.order_id,
-                                 "frame_index": request.frame_index, "task": "Consulte as quatro ferramentas."})}]
+                    messages = [{"role": "system", "content": self.system},
+                                {"role": "user", "content": _json({**request.model_dump(exclude={"snapshot_id"}),
+                                                                    "task": self.task})}]
                     for turn in range(self.max_turns):
-                        remaining = [name for name in TOOL_NAMES if name not in used]
+                        remaining = [name for name in self.tool_names if name not in used]
                         final = not remaining
-                        schema = Draft.model_json_schema() if final else ToolPlan.model_json_schema()
                         if final:
-                            messages.append({"role": "user", "content": FINAL})
-                            positive = {f["fact_id"] for r in results for f in r["facts"]
-                                        if f["kind"] == "metric" and int(f["value"]["numerator"]) > 0}
-                            allowed = [code for code, key in (("kitchen_timing", "metric.kitchen_delay"),
-                                       ("courier_wait", "metric.courier_waiting_time")) if key in positive]
-                            hypotheses = schema["properties"]["hypothesis_checks"]
-                            if allowed:
-                                hypotheses["items"]["enum"] = allowed
-                            else:
-                                hypotheses["maxItems"] = 0
-                            messages.append({"role": "user", "content": _json({"allowed_hypothesis_checks": allowed})})
+                            messages.append({"role": "user", "content": self.final})
+                            schema = self.final_schema(results, messages)
                         else:
+                            schema = self.plan_model.model_json_schema()
                             messages.append({"role": "user", "content": _json({"available_tools": remaining})})
                         if len(_json(messages)) > 65536:
                             raise TraceError("CONTEXT_LIMIT")
@@ -201,11 +236,11 @@ class TraceAgent:
                         if final:
                             if message.get("tool_calls"):
                                 raise TraceError("TOOL_LIMIT")
-                            draft = Draft.model_validate_json(message["content"])
-                            answer = verified_answer(draft, results)
+                            draft = self.draft_model.model_validate_json(message["content"])
+                            answer = self.answer(draft, results)
                             yield event("completed", **answer, tool_history=history)
                             return
-                        calls = ToolPlan.model_validate_json(message["content"]).tools
+                        calls = self.plan_model.model_validate_json(message["content"]).tools
                         if len(calls) + len(history) > self.max_calls:
                             raise TraceError("TOOL_LIMIT")
                         for name in calls:
@@ -214,7 +249,7 @@ class TraceAgent:
                             used.add(name)
                         messages.append({"role": "assistant", "content": _json({"tools": calls})})
                         for name in calls:
-                            args = {"order_id": request.order_id}
+                            args = tools.arguments
                             beginning = event("tool_started", name=name, arguments=args)
                             record = {"name": name, "arguments": args, "started_ms": beginning["elapsed_ms"]}
                             history.append(record)
@@ -233,14 +268,7 @@ class TraceAgent:
                             record.update(result=result, ended_ms=event("tool_result")["elapsed_ms"])
                             results.append(result)
                             yield event("tool_result", **record)
-                            # A IA escolhe fatos; valores, texto e fontes vêm das ferramentas.
-                            view = {"facts": [{"fact_id": f["fact_id"], "text": f["text"],
-                                     "references": [{"event_id": s["event_id"], "field": s["field"]} for s in f["sources"]]}
-                                    for f in result["facts"]], "unknowns": result["unknowns"],
-                                    "evidence": result.get("evidence", []),
-                                    "diagnostics": [{"code": d["code"], "event_id": d.get("event_id"),
-                                                     "conflict_event_ids": d.get("conflict_event_ids", [])}
-                                                    for d in result.get("inconsistencies", []) + result.get("ingestion_conflicts", [])]}
+                            view = self.model_view(result)
                             messages.append({"role": "user", "content": _json({"tool_result": name, "data": view})})
                     raise TraceError("TURN_LIMIT")
             except TimeoutError:

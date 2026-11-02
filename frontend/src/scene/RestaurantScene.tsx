@@ -61,10 +61,11 @@ function CameraRig({ focus, reduced, resetRequest }: { focus: Zone | null; reduc
 }
 
 export default function RestaurantScene({ orders, selected, selectedMonster, onOrder, onMonster, focus, onFocus, reduced,
-  events, diagnostics, resetRequest, onContextLost }: {
+  events, diagnostics, resetRequest, onContextLost, alerted }: {
   orders: Order[]; selected: string; selectedMonster: MonsterId | null; onOrder: (id: string) => void;
   onMonster: (id: MonsterId) => void; focus: Zone | null; onFocus: (zone: Zone) => void; reduced: boolean;
   events: ReplayEvent[]; diagnostics: number; resetRequest: number; onContextLost: () => void;
+  alerted: string | null;
 }) {
   const active = orders.find(order => order.order_id === selected);
   const applied = new Set(active?.applied_event_ids);
@@ -92,6 +93,7 @@ export default function RestaurantScene({ orders, selected, selectedMonster, onO
       {(Object.keys(positions) as MonsterId[]).map(id => <Monster key={id} id={id} position={positions[id]}
         selected={selectedMonster === id} reduced={reduced} onSelect={onMonster} />)}
       {orders.map((order, index) => <OrderParcel key={order.order_id} order={order} offset={index}
+        alerted={alerted === order.order_id}
         selected={selected === order.order_id} reduced={reduced} onSelect={onOrder} />)}
       <ContactShadows position={[0, -.55, 0]} opacity={.3} scale={17} blur={2.5} far={6} resolution={256} frames={1} />
       <CameraRig focus={focus} reduced={reduced} resetRequest={resetRequest} />

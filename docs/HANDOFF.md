@@ -1,12 +1,12 @@
 # Handoff / estado do projeto
 
-**Estado atual:** Etapas 5A/5B aprovadas em `2a66164`/`4046192`. Segunda rodada de correção #007 concluída: argumentos e emissões da auditoria isolados, 298 aprovações e um skip anterior. Aguardando terceira revisão independente. Todas as avaliações desta rodada usam mocks por segurança térmica; núcleo aprovado preservado.
+**Estado atual:** 5A/5B aprovadas em `2a66164`/`4046192`; 6A aprovada em `af983ee`. Correção da primeira rodada #008 aplicada à Etapa 6B: catálogo Scout independente do stream, validação semântica e destaque 3D visível. Ponytail FULL; somente stubs/mocks, nenhuma inferência Ollama real. Núcleo aprovado preservado. Ver registro da correção ao final e [SCOUT.md](SCOUT.md).
 
-**Próxima tarefa:** terceira revisão #007: repetir mutações imediatas/tardias de argumentos, consistência HTTP/NDJSON e frontend, preservando as proteções anteriores. Não executar inferências reais, fazer commit/push ou avançar antes da revisão do usuário.
+**Próxima tarefa:** segunda revisão independente #008: tentar falsificar o NDJSON contra o catálogo GET e o bundle, conferir evidências de pixels e a fronteira de confiança documentada. Não executar inferências reais, fazer commit/push ou avançar antes da revisão do usuário.
 
 **Evidências disponíveis:** PRD, arquitetura, gabarito das fixtures e decisões.
 
-**Não concluído:** outros agentes, n8n, MCP, deploy e medições de operações reais. Trace é local, somente leitura, com hipóteses restritas e dados sintéticos; ver [TRACE.md](TRACE.md).
+**Não concluído:** Fixer/Coordinator autônomos, simulador dinâmico, n8n, MCP, deploy e medições de operações reais. Scout/Trace são locais, somente leitura, com dados sintéticos e limites explícitos; ver [TRACE.md](TRACE.md) e [SCOUT.md](SCOUT.md).
 
 **Arquivos criados:** `rescueos/__init__.py`, `rescueos/contracts.py`,
 `rescueos/ingest.py`, `tests/__init__.py`, `tests/test_ingest.py`.
@@ -916,3 +916,201 @@ anteriores preservados. `git diff --check` sem erros.
 Próxima ação: terceira revisão independente. Auditoria ainda efêmera, um slot por
 processo, cancelamento externo best-effort e confiança no núcleo/snapshot. Novos
 argumentos aninhados exigirão rever a cópia de entrada. Sem commit, push ou 6B.
+
+## Etapa 6B — Scout + Interactive UX — 2026-10-31 / 2026-11-01
+
+Retomada sem reiniciar a implementação. Raiz confirmada `D:\rescueos_starter`;
+HEAD/base 6A `af983eee3833003eda3d23b3f1cb1f70bebaae39`. Antes da implementação
+existiam alterações não commitadas no README e no script de testes do package.json
+(inclusão dos testes Trace). Preservadas. Baseline de conteúdos/hashes de 75 arquivos
+em `out/stage6b-before.json`; separa mudanças prévias do incremento atual.
+Ponytail FULL carregado; nenhuma dependência ou agente paralelo adicionado.
+
+Baseline real: Python 233 casos, 232 aprovações e um skip de privilégio de symlink
+Windows; Node 39; strict/build exit 0; Playwright 27/27 em 1,7 min. Todos os
+provedores de teste conferidos antes das suítes: stubs ou HTTP MockTransport,
+sem execução de `tests.trace_live` ou chamadas a Ollama. Capturas before-desktop
+e before-mobile preservadas. Logs `out/stage6b-baseline-*.log`.
+
+Implementação já existente ao retomar: Scout canônico com três ferramentas,
+executor seguro compartilhado, validação/ledger NDJSON comum, painel de alertas,
+anel discreto no pedido, guia de replay e handoff explícito, resumo Trace e testes.
+Concluídos nesta retomada: inspeção visual renderizada, comparação Trace anterior,
+regressão geral, documentação e diffs. Não houve descarte de alterações.
+
+Backend: `rescueos/tower/scout.py`; alterações pequenas em `trace.py` (políticas do
+executor e base ReadOnlyTools) e `api.py` (POST Scout e slot compartilhado). Frontend:
+`api/agentStream.ts`, `api/scout.ts`, `components/ScoutPanel.tsx`; integração em App,
+TracePanel, FallbackWorld, RestaurantScene, OrderParcel, roster e CSS; duas funções
+existentes de validação exportadas. Testes novos: `tests/test_scout.py`,
+`frontend/src/api/scout.test.ts`, `frontend/e2e/scout.spec.ts`. Script npm inclui
+Scout e preserva Trace. Documentos: README, CONTROL_TOWER, TRACE, SCOUT, ADR-010 e
+este registro. Sem alteração no núcleo 1–4, fixtures, lockfile ou modelos dos mascotes.
+
+Regras: atraso/preparo positivos, espera concluída acima de threshold demonstrativo
+configurável 10 min, cancelamento informativo, limites de evidência/dados e conflito
+sem projeção. Métricas independentes são preservadas. Conflitos usam diagnósticos
+completos da auditoria estática, sem inventar pedidos/âncoras ou inserir eventos
+futuros no prefixo. LLM escolhe ferramentas, destaques e foco da explicação controlada;
+não altera números/fontes nem oculta o restante do catálogo. Ver SCOUT/ADR-010.
+
+Falhas encontradas durante o desenvolvimento, preservadas como evidências:
+
+- O teste inicial de operação sem alertas tinha atraso real de preparo de 1 min;
+  corrigido somente o cenário sintético do teste, sem modificar fixture/núcleo.
+- Uma projeção compacta de conflito não carregava todas as origens necessárias;
+  catálogo Scout corrigido para usar o diagnóstico estático completo do snapshot.
+- Cancelar entre linhas do mesmo buffer ainda permitia 11 callbacks em vez de um;
+  teste Node expôs a falha, corrigida no leitor compartilhado de NDJSON.
+- Testes novos Playwright tiveram ajustes de harness (tipagem de getContext e
+  consumo correto de gerador async Python); sem retries nem remoção de asserções.
+- Inspeção final encontrou hover escuro em botão principal com texto escuro;
+  uma regra CSS compartilhada mantém fundo claro no hover habilitado. Verificação
+  no navegador observou contraste 7,7:1 (`out/stage6b-hover-contrast.png`).
+- Alerta de entrega sem zona herdava foco genérico da timeline durante a navegação.
+  Regressão E2E adicional no caso existente falhou (`aria-pressed=false` para visão
+  geral); invertida a ordem das duas ações para preservar a zona canônica do alerta.
+  Mesmo teste passou em 8,4 s. Logs `out/stage6b-unassigned-zone-red.log` e
+  `out/stage6b-unassigned-zone-green.log`; sem chamada adicional à IA.
+
+Validação executada:
+
+- `.\.venv\Scripts\python.exe -B -m unittest discover -s tests -v`: **254 casos,
+  253 aprovados, um skip preexistente**, 28,676 s. Log `out/stage6b-python-final.log`.
+- `.\.venv\Scripts\python.exe -B -m unittest tests.test_scout tests.test_trace -v`:
+  **56/56** (21 Scout + 35 Trace, já incluídos no total Python), 8,369 s.
+  Log `out/stage6b-trace-scout-final.log`.
+- `npm.cmd test`: **45/45**, zero falhas, log `out/stage6b-node-final.log`.
+- `npx.cmd tsc --noEmit` e `npm.cmd run build`: exit 0. Build inicial final 588
+  módulos; main 273,38 kB / gzip 85,51; cena 954,08 / gzip 253,83.
+- `npx.cmd playwright test e2e/scout.spec.ts`: **6/6**, incluindo seleção real de
+  pedido, anel em objeto 3D, foco/reset, navegação 15/18, pin de quadro 20, handoff
+  sem execução automática, callbacks obsoletos, indisponibilidade, cancelamento,
+  retry, payload adulterado, teclado, mobile e WebGL indisponível.
+- Primeira execução completa Playwright: **32/33**, um timeout global de 45 s no
+  teste antigo de câmera `stage5b.spec.ts:49`. Trace mostra progresso até a última
+  restauração após seeks 15/20; não foi falha comprovada de estado da câmera.
+  Mesmo teste isolado, sem mudança: **1/1 em 24,2 s**. Não adicionar retries ou
+  aumentar limite para esconder a ocorrência. Log `out/stage6b-playwright-first-full.log`,
+  `out/stage6b-camera-isolated.log`; trace/screenshot/context em
+  `out/stage6b-camera-timeout*`. Repetição completa registrada abaixo ao concluir.
+  Segunda execução completa: **33/33 em 3,9 min**, sem alterações no teste de
+  câmera, retries ou timeout; log `out/stage6b-playwright-second-full.log`.
+  A ocorrência inicial permanece uma instabilidade observada sob SwiftShader,
+  não uma garantia de estabilidade obtida pela repetição. Após a correção final
+  do foco espacial, uma terceira execução completa está registrada ao final.
+
+Com monotonic/UUID fixados, comparação em memória com o Trace da baseline confirmou
+13 eventos canonicamente idênticos para ord-1001/1002/1003 finais e ord-1002 no
+quadro 15. Preservadas validações #007 e contrato `trace.1`. Conferência de hashes
+dos 23 arquivos protegidos (núcleo, testes anteriores, fixtures, lockfile,
+Monster/Restaurant, replay visual) não encontrou nenhuma alteração.
+
+Inspeção Chrome real com API explicitamente stub confirmou espera 13 min,
+ord-1002, navegação ao quadro 15, zero erros de página e ausência de overflow
+mobile. Capturas `out/stage6b-*.png`: overview, scout-selected, analysis,
+alert-open/alert-highlight, guided-replay, handoff, trace-summary, mobile,
+mobile-3d e fallback. Detalhes técnicos recolhidos, todos os alertas acessíveis e
+modo stub identificado. Etiquetas próximas na retirada já existem no baseline;
+mobile é longo com cartões abertos. SwiftShader, sem alegação de GPU física/FPS.
+
+Riscos: auditoria efêmera, slot por processo, cancelamento externo best-effort,
+confiança no núcleo/snapshot, threshold não calibrado, sem espera em andamento,
+previsão ou causalidade. Adaptador real conectado mas Scout **não validado com
+Ollama real**, por instrução térmica. Demo segura em SCOUT.md. Sem instalação,
+download de modelo, alteração de hardware, commit, push ou implementação futura.
+Próxima tarefa: revisão independente #008 antes de qualquer avanço.
+
+Fechamento da validação 6B: terceira execução completa Playwright, com a correção
+de foco e asserção adicional, **33/33 em 3,2 min**; log
+`out/stage6b-playwright-final.log`. O teste antigo de câmera passou em 19,2 s,
+sem qualquer alteração em seus testes, retries, tolerâncias ou timeout. As duas
+execuções completas posteriores passaram, mas a primeira falha permanece registrada
+para a revisão independente. Build final após o ajuste: exit 0, 588 módulos,
+main 273,38 kB (gzip 85,52), cena 954,08 kB (gzip 253,83), CSS 22,63 kB.
+
+Resultado principal final: **331 aprovações e um skip** — Python 253 + Node 45 +
+Playwright 33; os 56 Scout/Trace e execuções isoladas não são somados novamente.
+Nenhuma inferência real. `git diff --check` exit 0; verificação equivalente dos oito
+arquivos novos sem whitespace pendente. Fixtures, núcleo, testes anteriores,
+geometria/animações dos mascotes e lockfile preservados. HEAD continua `af983ee`.
+
+Diff completo, incluindo os oito arquivos novos: `out/stage6b-review.diff`.
+Incremento somente da 6B, excluindo mudanças prévias: `out/stage6b-only.diff`.
+Inventário de 25 arquivos e hashes: `out/stage6b-file-manifest.json`. Alterações
+prévias do README/package.json identificadas no inventário e preservadas. Logs,
+capturas e baseline ficam ignorados em `out/`, sem commit/push. Serviços locais
+de inspeção são encerrados após os testes; não é necessário parar Ollama, que não
+foi iniciado/usado nesta etapa. Implementação concluída para revisão #008.
+
+## Code Review #008 — correção da rodada 1
+
+Baseline preservado: HEAD `af983eee3833003eda3d23b3f1cb1f70bebaae39`, 25 arquivos
+modificados/novos da 6B. `out/review008-before.json` captura os 83 arquivos antes
+desta correção. Nenhuma alteração prévia foi descartada. Ponytail FULL aplicado.
+
+**Falhas comprovadas antes:** 11/22 testes Node falharam por aceitar alterações
+coordenadas, falso CANCELLED de ord-1001 com evt-019, textos/categorias/códigos e
+omissões. Dois testes Python novos falharam com 404 no catálogo inexistente.
+O teste de pixels falhou: anel em y=0,075, diferença 0/ruído 0. Elevar apenas até
+y=0,15 ainda resultou em diferença 0, pela oclusão de objetos. Logs RED preservados.
+
+**Correções:** GET canônico independente de NDJSON, sem LLM ou chamada de
+ferramenta, reutilizando `ScoutTools`; cliente confronta escopo, condições,
+categorias, métricas e fontes com o bundle, e stream/histórico/conclusão com a
+referência completa. Explicação final limitada aos textos controlados. Modelos
+HTTP existentes preenchem campos padrão dos diagnósticos para compatibilidade em
+casos incompletos, sem alterar operações. Um único anel em local y=0,2 contorna
+o topo do pacote, com depthTest normal, para seleção ou Scout.
+
+**Resultados reais:** suíte Python 256 casos em 36,954 s, **255 aprovados e 1 skip**
+preexistente (symlink/WinError 1314); Scout+Trace 58/58, incluídos. Node 63/63,
+incluindo 24 Scout. TypeScript strict exit 0; build Vite exit 0, 588 módulos,
+JS principal 275,53 kB e cena 953,91 kB. Playwright completo **37/37 em 3,4 min**;
+quatro novos testes também passaram isolados. Total: **355 aprovações, zero falhas
+finais e 1 skip**. Testes antigos de câmera: 18,8 s e 16,4 s, sem mudanças/retries.
+Falhas esperadas e a tentativa visual insuficiente não foram ocultadas; ver logs.
+
+**Pixels finais (RGB >12, região projetada):** focado 94, geral 80, preparo 300,
+retirada 303, coletado 80, mobile 26, cancelado selecionado mobile 26; ruído 0.
+Antes 0. Chrome com SwiftShader, não GPU física. Capturas ligadas/desligadas e
+JSONs das medições em `out/review008-ring-*.png`/`*-pixels.json`.
+
+**Arquivos desta rodada (12):** `rescueos/tower/{api,scout}.py`,
+`frontend/src/api/{client,scout,scout.test}.ts`,
+`frontend/src/scene/orders/OrderParcel.tsx`, `frontend/e2e/review008.spec.ts`,
+`tests/test_scout.py`, `docs/{SCOUT,HANDOFF,DECISIONS,CONTROL_TOWER}.md`.
+Núcleo 1–4, fixtures, testes antigos, cena/mascotes, estilos e lockfile preservados.
+20 eventos/21 quadros, três pedidos, taxas 1/2 e 1/3, valores 13/11/13 e fontes
+verificados com TestClient/stubs. `git diff --check` exit 0.
+
+**Artefatos ignorados em out/:** `review008-corrections.diff` compara esta rodada
+com o baseline preservado; `stage6b-after-review008.diff` inclui todas as mudanças
+contra HEAD e arquivos não rastreados; `review008-verification.json` lista escopo,
+hashes e invariantes. `review008-verify.py` regenera estes três usando stubs e
+confere arquivos protegidos. Logs: `review008-{node-red,python-red,pixels-red,
+scout-node-green,scout-python-green,agents-final,python-full,node-full,typescript,
+build,playwright-full,diff-check}.log`. Comandos de reprodução e links das imagens
+em [SCOUT.md](SCOUT.md#correção-008--resultados-e-reprodução).
+
+**Limites e próximo passo:** segunda revisão independente #008. Completude/textos
+dependem do backend confiável; não há garantia criptográfica contra controle
+coordenado de GET+bundle+POST ou código/memória do servidor. Auditoria efêmera,
+slot por processo e cancelamento externo best-effort permanecem. Parte do anel
+pode ser ocultada sob órbitas arbitrárias. Não houve inferência real, instalação,
+commit/push ou avanço para 6C. Não foi necessário redesenhar/instrumentar a câmera.
+
+## Ajuste final econômico 6B — 2026-11-02
+
+Ponytail FULL. O rótulo existente do pedido selecionado agora tem tamanho fixo
+124×54 px, borda/seta âmbar, ID e estado, mantendo o anel e a profundidade da cena.
+Capturas nativas inspecionadas: `out/final6b-desktop.png` e `final6b-mobile.png`.
+Descartada tentativa com Html por erro de desmontagem; versão final usa só sprite.
+Testes Trace comparam fatos/fontes/auditoria estruturados, com UUID normal e com
+999b; adulteração real 999/1 continua bloqueada. Antes: dois testes falhavam com
+999b; depois: arquivo Trace 35/35, Playwright direcionado 2/2, strict/build exit 0.
+Sem regressão completa nesta rodada, por solicitação do usuário. Para executá-la:
+na raiz, `.venv\Scripts\python.exe -B -m unittest discover -s tests -v`; em frontend,
+`npm.cmd test` e `npx.cmd playwright test` (provedores de teste são stubs/mocks).
+Somente OrderParcel, SceneLabel, testes correspondentes e este registro alterados.
+Contratos, fixtures e segurança preservados; sem Ollama real, instalação ou commit.

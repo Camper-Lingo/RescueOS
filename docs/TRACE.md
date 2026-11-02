@@ -282,3 +282,24 @@ sem erro de página. Logs e diffs desta rodada constam no HANDOFF.
 Somente stubs/mocks foram usados; nenhuma inferência Ollama, instalação ou mudança
 de hardware. Persistem as fronteiras de confiança e limitações locais anteriores.
 Correção implementada, aguardando terceira revisão independente; sem commit/6B.
+
+## Evolução na Etapa 6B — 2026-11-01
+
+A Etapa 6A acima foi posteriormente aprovada e commitada em `af983ee`; os relatos
+anteriores permanecem como histórico. Scout reutiliza o executor seguro através
+de pequenos pontos de extensão para ferramentas, schemas, visão do modelo e
+montagem da resposta. `ReadOnlyTools` compartilha somente validação de argumentos
+e leitura de cópias do catálogo. Não há mudança nos fatos/cálculos do Trace.
+Os dois agentes compartilham o slot de execução no processo da API.
+
+No cliente, `agentStream.ts` reúne transporte NDJSON e conferência integral do
+histórico; a validação específica de fatos e hipóteses continua em `trace.ts`.
+Cancelamento é observado também entre linhas já presentes no mesmo buffer.
+
+A apresentação principal mostra estado e três métricas canônicas com fontes
+navegáveis. Os fatos integrais, hipóteses, unknowns, fontes/hashes e histórico
+continuam acessíveis em detalhes recolhidos. O resultado só é mostrado após EOF
+válido; troca de contexto cancela pendências e rejeita callbacks obsoletos.
+Scout → Trace apenas abre o pedido/quadro correto; outro clique inicia Trace.
+Contrato `trace.1` preservado. Regressão e provas estão no HANDOFF; nenhuma
+inferência real foi executada nesta implementação. Veja [SCOUT.md](SCOUT.md).

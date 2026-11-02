@@ -34,10 +34,10 @@ const decimal = match(/^\d+$/), sha256 = match(/^[a-f0-9]{64}$/);
 const timestamp = match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/);
 const metadata = { schema_version: oneOf('1.0'), snapshot_id: sha256, demo_mode: oneOf(true), synthetic: oneOf(true), scenario: text };
 export const rational = object({ numerator: match(/^-?\d+$/), denominator: match(/^[1-9]\d*$/) });
-const origin = object({ source: text, line: value => { natural(value); if (value === 0) invalid(); }, raw_text_sha256: sha256 });
+export const origin = object({ source: text, line: value => { natural(value); if (value === 0) invalid(); }, raw_text_sha256: sha256 });
 const evidenceFields = { event_id: identifier, order_id: nullable(identifier), restaurant_id: identifier, type: identifier, occurred_at: timestamp, origins: list(origin) };
 const evidence = object(evidenceFields);
-const diagnostic = object({ code: text, message: optional(nullableText), event_id: optional(nullableText), order_id: optional(nullableText),
+export const diagnostic = object({ code: text, message: optional(nullableText), event_id: optional(nullableText), order_id: optional(nullableText),
   affected_order_ids: optional(strings), affected_event_types: optional(strings), origins: optional(list(origin)), evidence: optional(list(evidence)),
   conflict_event_ids: optional(strings), stage: optional(nullableText), severity: optional(nullableText), classification: optional(nullableText), fatal: optional(boolean) });
 export const source = object({ event_id: identifier, event_type: identifier, field: identifier, timestamp, origins: list(origin) });

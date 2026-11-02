@@ -16,9 +16,12 @@ from .snapshot import DEMO_FIXTURE, load_snapshot
 from .serialization import EscapedJSONResponse
 from .trace import InvestigationRequest, OrderTools, TraceAgent
 from .trace_provider import OllamaProvider, TraceError
+from .scout import ScoutAgent, ScoutPolicy, ScoutRequest, ScoutTools
 
 
-def create_app(fixture_path: Path = DEMO_FIXTURE, *, trace_provider=None):
+def create_app(fixture_path: Path = DEMO_FIXTURE, *, trace_provider=None, scout_provider=None, scout_wait_minutes=None):
+    policy = ScoutPolicy(courier_wait_minutes=int(os.environ.get("RESCUEOS_SCOUT_WAIT_MINUTES", "10"))
+                         if scout_wait_minutes is None else scout_wait_minutes)
     @asynccontextmanager
     async def lifespan(application):
         snapshot = load_snapshot(fixture_path)
@@ -32,8 +35,10 @@ def create_app(fixture_path: Path = DEMO_FIXTURE, *, trace_provider=None):
             validated = OrderResponse.model_validate(snapshot.payload("order:" + order["order_id"]))
             EscapedJSONResponse(validated.model_dump(mode="json"))
         application.state.snapshot = snapshot
-        application.state.trace = TraceAgent(trace_provider if trace_provider is not None else
-                                              OllamaProvider(os.environ.get("RESCUEOS_TRACE_MODEL", "qwen3:4b")))
+        provider = trace_provider if trace_provider is not None else OllamaProvider(os.environ.get("RESCUEOS_TRACE_MODEL", "qwen3:4b"))
+        application.state.trace = TraceAgent(provider)
+        application.state.scout = ScoutAgent(scout_provider if scout_provider is not None else provider,
+                                             lock=application.state.trace.lock)
         yield
 
     application = FastAPI(title="RescueOS · The Living Restaurant", version="1.0", lifespan=lifespan,
@@ -89,8 +94,23 @@ def create_app(fixture_path: Path = DEMO_FIXTURE, *, trace_provider=None):
     def replay(request: Request):
         return payload(request, "replay")
 
-    @application.post("/api/v1/trace/investigate")
-    async def investigate(request: Request):
+    @application.get("/api/v1/scout/catalog")
+    def scout_catalog(request: Request):
+        query = request.query_params
+        if sorted(query.keys()) != ["frame_index", "snapshot_id"] or len(query.multi_items()) != 2:
+            raise HTTPException(status_code=422, detail="Escopo do catálogo inválido.")
+        try:
+            # model_validate_strings keeps the same strict frame contract for a GET query.
+            body = ScoutRequest.model_validate_strings(dict(query))
+            tools = ScoutTools(request.app.state.snapshot, body, policy)
+        except ValidationError:
+            raise HTTPException(status_code=422, detail="Escopo do catálogo inválido.") from None
+        except TraceError as exc:
+            raise HTTPException(status_code=409 if exc.code == "SNAPSHOT_MISMATCH" else 422, detail=exc.code) from None
+        return EscapedJSONResponse({"schema_version": "scout.1", **body.model_dump(), **tools.canonical_catalog},
+                                   headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
+
+    async def investigation(request, request_model, make_tools, agent):
         origin = request.headers.get("origin")
         if origin is not None and origin not in {
             "http://127.0.0.1:5173", "http://localhost:5173", "http://127.0.0.1:4173", "http://localhost:4173",
@@ -103,8 +123,8 @@ def create_app(fixture_path: Path = DEMO_FIXTURE, *, trace_provider=None):
             if len(raw) > 16384:
                 raise HTTPException(status_code=413, detail="Solicitação excede o limite de Trace.")
         try:
-            body = InvestigationRequest.model_validate(json.loads(raw))
-            tools = OrderTools(request.app.state.snapshot, body)
+            body = request_model.model_validate(json.loads(raw))
+            tools = make_tools(request.app.state.snapshot, body)
         except (ValidationError, ValueError, RecursionError):
             raise HTTPException(status_code=422, detail="Solicitação de investigação inválida.") from None
         except TraceError as exc:
@@ -112,11 +132,20 @@ def create_app(fixture_path: Path = DEMO_FIXTURE, *, trace_provider=None):
             raise HTTPException(status_code=status, detail=exc.code) from None
 
         async def lines():
-            async for event in request.app.state.trace.stream(tools):
+            async for event in agent.stream(tools):
                 yield json.dumps(event, ensure_ascii=True, allow_nan=False, separators=(",", ":")) + "\n"
 
         return StreamingResponse(lines(), media_type="application/x-ndjson",
                                  headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
+
+    @application.post("/api/v1/trace/investigate")
+    async def investigate(request: Request):
+        return await investigation(request, InvestigationRequest, OrderTools, request.app.state.trace)
+
+    @application.post("/api/v1/scout/analyze")
+    async def analyze(request: Request):
+        return await investigation(request, ScoutRequest, lambda snapshot, body: ScoutTools(snapshot, body, policy),
+                                   request.app.state.scout)
 
     return application
 

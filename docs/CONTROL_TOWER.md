@@ -1,9 +1,14 @@
 # Etapas 5A/5B — The Living Restaurant
 
-Etapa 5A aprovada em `2a66164`; Etapa 5B aprovada em `4046192`. Etapa 6A implementada
-para Code Review #007: Trace investiga com Ollama local e ferramentas de leitura.
-Veja [TRACE.md](TRACE.md). Núcleo das Etapas 1–4, fixtures, cena 5B e GETs 5A
-preservados; sem commit, push ou deploy nesta etapa.
+Etapa 5A aprovada em `2a66164`; Etapa 5B aprovada em `4046192`; Etapa 6A aprovada
+em `af983ee`. A Etapa 6B acrescenta Scout e exploração guiada, aguardando revisão
+#008. Veja [TRACE.md](TRACE.md) e [SCOUT.md](SCOUT.md). Núcleo das Etapas 1–4,
+fixtures e GETs 5A preservados; sem commit, push ou deploy nesta etapa.
+
+Para inspecionar Scout/Trace sem inferência real, use o procedimento explícito com
+stubs em [SCOUT.md](SCOUT.md#demonstração-segura-no-powershell--sem-ollama). A simples
+seleção de um mascote não inicia inferência. O comando normal de API abaixo conecta
+o adaptador real quando o usuário solicita uma análise; os testes da 6B usam mocks.
 
 ## Executar no PowerShell
 
@@ -37,7 +42,13 @@ Abra http://127.0.0.1:5173/; documentação HTTP em http://127.0.0.1:8000/docs.
 Vite encaminha `/api` para a porta 8000. Não exponha os servidores na rede pública.
 Ctrl+C encerra cada processo. A API lê a fixture uma vez no startup; reinicie o
 backend para trocar o snapshot. Não há comando HTTP de escrita de negócio ou
-recarga. O POST de Trace inicia investigação somente leitura (ADR-009).
+recarga. Os POSTs de Trace e Scout iniciam consultas somente leitura (ADR-009/010):
+`/api/v1/trace/investigate` e `/api/v1/scout/analyze`. Compartilham um slot por
+processo. O handoff entre painéis exige ação do usuário e não executa outro agente.
+
+Scout consulta primeiro GET `/api/v1/scout/catalog` com snapshot/quadro para obter
+uma referência canônica independente do NDJSON. Essa leitura não invoca LLM;
+contrato, validações do cliente e fronteira de confiança em [SCOUT.md](SCOUT.md).
 
 `npm.cmd run build` faz typecheck strict e build de produção. Para conferir o build
 local, mantenha o backend e execute `npm.cmd run preview`; a porta é 4173, com o

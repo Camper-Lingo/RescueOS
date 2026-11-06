@@ -93,10 +93,6 @@ Criar um replay local de eventos que lê `fixtures/demo_events.jsonl`, valida os
 4. Leia o plano proposto pelo Codex **antes** de autorizar mudanças.
 5. Depois da implementação, confira os valores de `fixtures/demo_checks.md` e execute os testes de verdade.
 
-## Limites importantes
-
-Projeto independente e não afiliado ao iFood. Não utiliza dados reais, credenciais, marcas em interfaces como se fosse oficial, nem APIs internas da empresa. Nenhuma estimativa de impacto é apresentada como resultado operacional real.
-
 ## Fase 0 — etapa 1 implementada
 
 Ingestão local: leitura JSONL, contrato v0.1, timestamps com offset,

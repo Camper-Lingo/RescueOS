@@ -7,6 +7,8 @@
 
 [Explore the AI Engineering case study](docs/AI_ENGINEERING_CASE.md) · [ML results](ai_lab/example_results/report.md) · [Agent integrity results](ai_lab/example_results/reliability-report-8b.md) · [Architecture](docs/ARCHITECTURE.md)
 
+URL: https://8bdfe6d4.rescueos-1ih.pages.dev/
+
 ## At a glance
 
 | Experiment / capability | Observed result | What it means |

@@ -75,8 +75,6 @@ Criar um replay local de eventos que lê `fixtures/demo_events.jsonl`, valida os
 - eventos que justificam o estado de cada pedido;
 - avisos de dados insuficientes, sem inventar causas.
 
-Não criar frontend, agentes, MCP, API ou n8n nesta primeira missão. Não usar serviços pagos. A implementação será delegada ao Codex e supervisionada por você.
-
 ## Documentos
 
 - `docs/PRD.md` — produto e requisitos.

@@ -1,278 +1,161 @@
-# RescueOS — Delivery Intelligence Control Tower
+# RescueOS — The Living Restaurant
 
-## Etapas 5A/5B — The Living Restaurant
+**A simulation-driven laboratory for AI engineering, delivery-risk prediction, and verifiable LLM agents.**
 
-A Etapa 5A está registrada no commit `2a66164` e a Etapa 5B aprovada em `4046192`: restaurante 3D
-procedural, cinco mascotes originais, pedidos selecionáveis, replay temporal e
-painel de evidências ligados a uma API FastAPI somente leitura. Todos os dados são
-sintéticos. A Etapa 6A (Trace) foi aprovada em `af983ee`. A Etapa 6B acrescenta
-Scout e exploração guiada de alertas, aguardando Code Review #008. Nenhuma ação
-operacional é executada.
+> **Independent educational project · Synthetic data only · Local-first**  
+> A playable 3D restaurant is the interface. Underneath it, RescueOS combines a deterministic event engine, an ML experiment, and an evidence-validated agent workflow. Its main engineering question is simple: **how do we tell a convincing AI answer from a verifiable one?**
 
-**Demonstração sem inferência real:** siga os dois comandos PowerShell com stubs
-explícitos em [`docs/SCOUT.md`](docs/SCOUT.md#demonstração-segura-no-powershell--sem-ollama).
-Scout destaca atrasos/espera observados, navega para evidências no replay e abre
-Trace por ação do usuário. O teste real de Scout não foi executado por segurança
-térmica; selecionar personagens ou quadros não inicia chamadas ao modelo.
+[Explore the AI Engineering case study](docs/AI_ENGINEERING_CASE.md) · [ML results](ai_lab/example_results/report.md) · [Agent integrity results](ai_lab/example_results/reliability-report-8b.md) · [Architecture](docs/ARCHITECTURE.md)
 
-Com as dependências já instaladas e autorizadas, abra dois terminais PowerShell:
+## At a glance
 
-```powershell
-# Terminal 1 — raiz do repositório
-Set-Location D:\rescueos_starter
-.\.venv\Scripts\python.exe -B -m uvicorn rescueos.tower.api:app --host 127.0.0.1 --port 8000
+| Experiment / capability | Observed result | What it means |
+|---|---:|---|
+| Delivery-delay prediction | **F1 = 0.810** | Logistic regression on held-out synthetic simulation seeds; fixed-rule baseline: **0.698** |
+| Offline agent integrity (8B) | **20/20 cases** | Controlled-provider test suite; **15/15** adversarial attempts rejected in the tested scenarios |
+| Offline agent robustness (8D) | **27/27 cases** | Contract and state-validation cases using a stubbed provider, not a real LLM |
+| Local Qwen3:4B evaluation (8C) | **4/4 small cases** | Scout and Trace completed the predefined checks on **one synthetic historical fixture** |
+
+These results **do not establish production accuracy, generalization, or comprehensive security**. See [methodology, failure modes, and limitations](docs/AI_ENGINEERING_CASE.md).
+
+## What you can explore
+
+**1. A living, interactive restaurant.** Choose quiet, medium, or busy-night scenarios; run or pause the clock; follow synthetic orders as the kitchen prepares them and couriers collect them. Explore the scene with a 360-degree camera, interact with the original crew, and review the end-of-night summary. The simulation is deterministic for a given scenario/seed and does **not** require an LLM or backend to open.
+
+**2. An auditable historical replay.** Open a separate mode to inspect accepted events, order states, timelines, exact metrics, and evidence from a FastAPI snapshot. Conflicting or incomplete data is shown as uncertain rather than silently converted into a definitive outcome. A 2D fallback preserves access when WebGL is unavailable.
+
+**3. AI agents with explicit trust boundaries.** **Scout** identifies relevant alerts from a verifiable catalog; **Trace** investigates selected orders and their canonical evidence. Their local LLM workflow uses Qwen3:4B through Ollama **only after an explicit user action**. Agent suggestions cannot overwrite event-derived metrics or invent authoritative references. Other crew characters and the live-night automation are scripted simulation behaviors, **not autonomous LLM agents**.
+
+**4. An AI Engineering Lab.** Generate datasets from the real TypeScript simulation, train and evaluate a delivery-risk classifier, test the agents against malformed or forged tool outputs, and run a deliberately small, separately identified real-model evaluation.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    S[TypeScript living-night simulation] --> UI[React + React Three Fiber 3D experience]
+    S --> D[Synthetic nights / seed-level datasets]
+    D --> B[Fixed-rule baseline]
+    D --> ML[scikit-learn logistic regression]
+    B --> EV[Held-out evaluation and error analysis]
+    ML --> EV
+
+    F[Synthetic canonical JSONL fixture] --> I[Python event ingestion and validation]
+    I --> R[Deterministic replay + exact evidence-based metrics]
+    R --> API[Read-only FastAPI snapshot]
+    API --> H[Historical 3D / accessible 2D explorer]
+    API --> TOOLS[Read-only verified tools]
+    TOOLS --> AG[Scout and Trace + local Qwen3:4B]
+    AG --> V[Independent source and tool-result validation]
+    V --> H
+
+    AG --> LAB[Offline and real-model agent evaluations]
 ```
 
+The **ML training dataset comes from the living simulation**, while the **Scout/Trace LLM evaluations use a separate historical synthetic fixture**. The two should not be mistaken for a single end-to-end live-agent benchmark.
+
+## Run locally
+
+### Prerequisites
+
+- **Node.js 22+** and npm for the frontend and dataset exporter.
+- **Python 3.11+** for the backend; the ML reproduction commands below use `uv` and Python 3.14.
+- A browser with WebGL for the 3D scene; the historical explorer also supports a 2D fallback.
+- **Ollama and `qwen3:4b` are optional** and are not needed for the playable simulation, backend replay, or offline evaluation.
+
+### A. Play the living restaurant — no backend needed
+
 ```powershell
-# Terminal 2
-Set-Location D:\rescueos_starter\frontend
+# Clone once, then run the frontend.
+git clone https://github.com/Camper-Lingo/RescueOS.git
+cd RescueOS\frontend
+npm.cmd ci
 npm.cmd run dev
 ```
 
-Abra **http://127.0.0.1:5173/**. Selecione `ord-1002`, abra as evidências e use
-reiniciar/reproduzir ou arraste a timeline. O primeiro carregamento mostra o
-snapshot final pausado. `?view=2d` abre a alternativa acessível sem a cena 3D.
-Use Ctrl+C em cada terminal para encerrar. Os serviços escutam somente em loopback.
+Open **http://127.0.0.1:5173/**. This is the **default** entry point. Try a busy night, inspect the crew and delivery flow, then finish the shift to see the summary.
 
-Para investigar, mantenha o Ollama/modelo **já instalado** em outro terminal:
+### B. Explore the historical replay and evidence
 
-```powershell
-$env:OLLAMA_HOST = '127.0.0.1:11434'
-$env:OLLAMA_NO_CLOUD = '1'
-$env:OLLAMA_NOPRUNE = '1'
-& "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" serve
-```
-
-Selecione o pedido, abra Trace e clique **Investigar com Trace**. Integração executada
-com `qwen3:4b`; sem modelo disponível há erro e retry, sem IA simulada. Arquitetura,
-contrato e resultados reais: [`docs/TRACE.md`](docs/TRACE.md).
-
-Guia completo, versões, instalação reproduzível, testes, screenshots e limitações:
-[`docs/CONTROL_TOWER.md`](docs/CONTROL_TOWER.md). Decisões no ADR-008 de
-[`docs/DECISIONS.md`](docs/DECISIONS.md). Os comandos históricos do MVP 0 abaixo
-continuam descrevendo o núcleo/CLI sem dependências; para descobrir **todos** os
-testes agora, use o Python da `.venv`, que inclui FastAPI e HTTPX.
-
-**Predict → Rescue → Explain.** Projeto educacional independente, com eventos totalmente simulados, para praticar AI Building, engenharia de workflows e avaliação de agentes.
-
-## Visão
-
-Um único produto com três módulos conectados por um log de eventos:
-
-1. **SurgeShield** — detecta sobrecarga operacional e compara cenários simulados.
-2. **RescueOps** — identifica pedidos em risco e propõe intervenções limitadas, aprovadas por humano.
-3. **FairTrace** — reconstrói cronologias, distingue observações de hipóteses e gera dossiês verificáveis.
-
-O painel central é a **Control Tower**, que mostra o que está acontecendo, por que uma intervenção é proposta e o que a simulação mostra como consequência.
-
-## Primeira missão (MVP 0)
-
-Criar um replay local de eventos que lê `fixtures/demo_events.jsonl`, valida os eventos, ignora duplicidades por `event_id`, ordena-os por tempo e exibe:
-
-- status final de cada pedido;
-- pedidos entregues após o prazo e minutos de atraso;
-- pedidos cancelados;
-- eventos que justificam o estado de cada pedido;
-- avisos de dados insuficientes, sem inventar causas.
-
-## Documentos
-
-- `docs/PRD.md` — produto e requisitos.
-- `docs/ARCHITECTURE.md` — visão técnica, contrato dos eventos e limites.
-- `docs/ROADMAP.md` — evolução por entregas e habilidades.
-- `docs/DECISIONS.md` — decisões e justificativas.
-- `docs/HANDOFF.md` — registro do estado do projeto.
-- `FIRST_TASK_FOR_CODEX.md` — prompt para iniciar implementação.
-- `AGENTS.md` — regras de trabalho do Codex neste repositório.
-
-## Como começar no Windows
-
-1. Extraia o pacote em uma pasta de projeto e abra essa pasta no VS Code.
-2. Confira `docs/PRD.md`, `docs/ARCHITECTURE.md` e `fixtures/demo_checks.md`.
-3. Abra o Codex e envie o conteúdo de `FIRST_TASK_FOR_CODEX.md`.
-4. Leia o plano proposto pelo Codex **antes** de autorizar mudanças.
-5. Depois da implementação, confira os valores de `fixtures/demo_checks.md` e execute os testes de verdade.
-
-## Fase 0 — etapa 1 implementada
-
-Ingestão local: leitura JSONL, contrato v0.1, timestamps com offset,
-deduplicação e conflitos. Etapas 1 a 3 aprovadas; Reporting & CLI da Etapa 4
-implementados e aguardando revisão independente. Veja o comando completo abaixo.
-Python 3.11 ou superior, somente biblioteca padrão; validado com Python 3.14.4.
-
-No PowerShell, a partir da raiz do repositório:
+In a **second PowerShell terminal**, from the repository root:
 
 ```powershell
-Set-Location D:\rescueos_starter
-python -m unittest discover -s tests -v
-python -c "from rescueos.ingest import read_jsonl; r = read_jsonl('fixtures/demo_events.jsonl'); print('aceitos:', len(r.events), 'erros:', len(r.errors), 'grupos duplicados:', len(r.duplicates))"
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-tower.txt
+.\.venv\Scripts\python.exe -B -m uvicorn rescueos.tower.api:app --host 127.0.0.1 --port 8000
 ```
 
-A segunda chamada inspeciona a ingestão e não grava arquivos. A fixture atual
-contém 20 eventos válidos. A API `read_jsonl(path)` retorna:
+With the frontend still running, open **http://127.0.0.1:5173/?mode=history**. For the accessible 2D rendering, use **`?mode=history&view=2d`**. API docs are available locally at **http://127.0.0.1:8000/docs**.
 
-- `events`: eventos válidos únicos, em ordem de ID, sem replay temporal;
-- `origins_by_id`: arquivo, linha e texto original de cada ocorrência identificável;
-- `errors`: erros de leitura de linha, validação e conflitos;
-- `duplicates`: diagnóstico de grupos de reenvios idênticos válidos.
+Scout/Trace inference is **not** automatically started by opening the app or selecting a character. It requires an explicit action and a separately configured local Ollama instance; see [Trace](docs/TRACE.md), [Scout](docs/SCOUT.md), and [real-LLM evaluation instructions](ai_lab/README_8C.md).
 
-Somente `events` alimentará o negócio. Duplicatas podem alterar diagnósticos e
-origens, mas não esse conjunto. Estados, métricas e relatórios futuros deverão
-usar `events`, sem incluir contagens de duplicatas em resultados de negócio.
-Esta etapa testa a igualdade dessa entrada; ainda não testa relatórios inexistentes.
-
-Mesmo ID com qualquer conteúdo divergente gera `EVENT_ID_CONFLICT` e exclui
-todas as variantes, incluindo uma variante válida que conflite com outra inválida.
-O erro guarda todas as origens, pedidos e tipos afetados e avisa sobre possíveis
-lacunas em métricas dependentes. Nenhuma métrica é calculada nesta etapa.
-
-### Exemplos de ingestão
-
-Evento válido:
-
-```json
-{"event_id":"evt-example","order_id":"ord-example","restaurant_id":"rest-01","occurred_at":"2026-10-29T18:01:00-03:00","type":"KITCHEN_STARTED","data":{}}
-```
-
-Duplicado: uma segunda linha idêntica à anterior, inclusive com as propriedades
-em outra ordem ou espaços diferentes. Resultado: um evento aceito e diagnóstico
-`DUPLICATE_EVENT`, com ambas as origens.
-
-Conflitante, quando recebido junto do válido acima:
-
-```json
-{"event_id":"evt-example","order_id":"ord-example","restaurant_id":"rest-01","occurred_at":"2026-10-29T18:02:00-03:00","type":"KITCHEN_STARTED","data":{}}
-```
-
-Resultado: nenhum evento desse ID aceito; `EVENT_ID_CONFLICT` preserva as duas linhas.
-
-Inválido, por ausência de offset:
-
-```json
-{"event_id":"evt-invalid","order_id":"ord-example","restaurant_id":"rest-01","occurred_at":"2026-10-29T18:01:00","type":"KITCHEN_STARTED","data":{}}
-```
-
-Resultado: rejeição com `INVALID_TIMESTAMP`; outras linhas continuam sendo lidas.
-
-### Limites do leitor
-
-O processamento agrupa o arquivo completo em memória, sem deduplicação persistente
-entre chamadas. Erros de abertura/leitura do arquivo propagam `OSError`; linhas
-inválidas ficam em `errors`. Linhas vazias, BOM, chaves JSON repetidas, números não
-finitos e UTF-8 inválido são rejeitados explicitamente. Texto recebido nunca é executado.
-Detalhes do contrato e da identidade estão em `docs/DECISIONS.md`.
-
-Após a correção da Code Review #001, JSON malformado gera `INVALID_JSON`;
-números JSON fora dos limites locais geram `INVALID_NUMBER`, preservando o ID
-identificável para análise de conflitos. A leitura continua após essas linhas.
-Limites: literal de até 128 caracteres, inteiros signed int64, coeficiente decimal
-de até 100 dígitos e expoente explícito de -308 a 308, sem overflow ou underflow
-para zero na conversão float. Consulte ADR-004 para detalhes e limitações.
-
-Regressões numéricas específicas:
+### C. Test the application
 
 ```powershell
-python -B -m unittest tests.test_numeric_ingest -v
+# From the repository root; after backend dependencies are installed:
+.\.venv\Scripts\python.exe -B -m unittest discover -s tests -q
+
+# From the frontend directory:
+cd frontend
+npm.cmd test
+npm.cmd run build
+npx.cmd playwright test
 ```
 
-## Etapa 2 — Event Replay Engine
+End-to-end tests can start their own test server as configured in the repository. Tests are separate from real Ollama inference.
 
-O motor recebe a saída da ingestão e reconstrói timelines e o último estado
-aplicável, preservando evidências de inconsistências. Preparo e chegada do
-entregador são acompanhados independentemente. As transições e políticas de
-ambiguidade estão no ADR-005 em `docs/DECISIONS.md`.
+## The ML experiment: identifying late deliveries
 
-Execute na raiz do repositório, no PowerShell:
+The dataset contains **6,270 synthetic orders from 450 simulated nights**. Training and test partitions are separated by **simulation seed**, not by randomly mixing individual orders from the same run. Only completed deliveries receive a lateness label: **3,942** training deliveries and **991** test deliveries; **1,083** training and **254** test orders remained pending and were excluded from this binary target.
+
+| Method | Precision (late) | Recall (late) | F1 (late) | Balanced accuracy |
+|---|---:|---:|---:|---:|
+| Fixed operational rule | **0.735** | 0.665 | 0.698 | 0.791 |
+| Logistic regression | 0.721 | **0.925** | **0.810** | **0.901** |
+
+The aggregate result is not the full story: the model scores only **0.304 F1 on medium nights**, where late deliveries are rare, versus **0.860 on busy nights**. Selection bias from excluding pending orders and synthetic-only evaluation are explicit limitations, not hidden footnotes.
+
+Reproduce the experiment from the repository root:
 
 ```powershell
-python -B -m unittest tests.test_replay -v
-python -B -m unittest discover -s tests -v
-python -B -c "from rescueos.ingest import read_jsonl; from rescueos.replay import replay; r = replay(read_jsonl('fixtures/demo_events.jsonl')); print([(k, v.status, v.resolution) for k, v in r.orders.items()]); print('inconsistencias:', len(r.inconsistencies))"
+node --experimental-strip-types ai_lab/export_nights.mjs --seeds 150
+uv run --python 3.14 --with scikit-learn --with joblib python ai_lab/train.py
 ```
 
-Para inspecionar a timeline de `ord-1002`, sem gerar arquivos:
+The exporter creates the synthetic dataset locally. Generated datasets and trained-model artifacts are intentionally excluded from version control.
+
+## Agent reliability: facts before fluent explanations
+
+**Scout** searches for evidence-backed operational alerts; **Trace** retrieves and presents a selected order's event history and metrics. Both use bounded, read-only tools and compare returned values and references with canonical backend data.
+
+The offline test suites inject controlled incorrect outputs, including a forged **999-minute** metric, invented evidence references, forbidden tools, and invalid responses. The tests measure the behavior of the **validators and agent contracts**, not the reasoning accuracy of an unconstrained LLM.
 
 ```powershell
-python -B -c "from rescueos.ingest import read_jsonl; from rescueos.replay import replay; r = replay(read_jsonl('fixtures/demo_events.jsonl')); print([(e.event['event_id'], e.event['occurred_at'], e.event['type']) for e in r.orders['ord-1002'].timeline])"
+# From repository root; no Ollama calls:
+.\.venv\Scripts\python.exe -B ai_lab\reliability.py
+.\.venv\Scripts\python.exe -B ai_lab\stress_suite.py
 ```
 
-Saída da API: `orders` (pedidos criados), `orphan_histories` (históricos sem criação),
-`operational_context` (capacidade/promoção), `ingestion_errors` (diagnósticos da
-Etapa 1) e `inconsistencies` (visão conjunta das inconsistências de replay).
-Um pedido ambíguo usa `status=None`, `resolution='AMBIGUOUS'`. Eventos rejeitados
-pela ingestão não entram nas timelines. Não há cálculos de atraso nesta etapa.
+A separate manual evaluation ran **four Qwen3:4B cases** on a single synthetic historical fixture: Scout with and without alerts, and Trace for an on-time and a delayed order. All four met their predefined checks, but that sample is too small to imply statistical accuracy, reliable causal explanation, or robustness in real operations. Real-model execution is opt-in and documented in [AI Lab 8C](ai_lab/README_8C.md).
 
-## Etapa 3 — Metrics & Evidence Engine
+## Project structure
 
-`compute_metrics(ReplayResult)` calcula cinco métricas por pedido, contagens e taxas
-com elegibilidade explícita. Valores em minutos e taxas usam `Fraction` da biblioteca
-padrão, mantendo precisão exata. Fontes incluem IDs, campos, timestamps e origens.
-Disponibilidade é avaliada por dependência; consulte as políticas do ADR-006.
-
-No PowerShell, a partir da raiz do repositório:
-
-```powershell
-python -B -m unittest tests.test_metrics -v
-python -B -m unittest discover -s tests -v
-python -B -c "from rescueos.ingest import read_jsonl; from rescueos.replay import replay; from rescueos.metrics import compute_metrics; r = compute_metrics(replay(read_jsonl('fixtures/demo_events.jsonl'))); print({k: str(a.value) for k, a in r.aggregates.items()}); print(r.orders['ord-1002'].metrics['delivery_delay'])"
+```text
+frontend/    Playable simulation, React UI, 3D restaurant, unit and Playwright tests
+rescueos/    Python ingest, replay, metrics, reporting, and FastAPI endpoints
+ai_lab/      Dataset export, ML training, offline/real-LLM evaluations and examples
+fixtures/    Canonical synthetic event fixtures
+docs/        Engineering decisions, contracts, audit notes and case study
+tests/       Python regression tests
 ```
 
-O comando inspeciona resultados em memória. `available=False` usa `value=None`,
-com motivo explícito. Não converta indisponibilidade em zero. Leia resolução,
-qualidade local e qualidade do pedido junto do valor. Agregados registram IDs
-excluídos, motivos, numerador, denominador e critérios. Dados são sintéticos.
-A Etapa 4 abaixo implementa os exportadores e define a serialização no ADR-007.
+See [the detailed case study](docs/AI_ENGINEERING_CASE.md) for numerical results, evaluation boundaries, and future experiments. The documentation in `docs/` also preserves earlier engineering milestones and decisions.
 
-## Etapa 4 — Reporting & CLI
+## Engineering decisions and limitations
 
-O MVP executável integra ingestão, replay e métricas sem alterar suas interfaces.
-No Windows PowerShell, com Python 3.11 ou superior e apenas biblioteca padrão:
+- **Synthetic, not operational:** no live delivery platform integration, customer data, or production performance claims.
+- **Read-only investigation:** canonical events drive facts; agents do not dispatch couriers or change orders.
+- **Explicit evaluation boundaries:** stubbed-provider robustness is not real-model accuracy; historical LLM tests are separate from the live simulated nights.
+- **Known ML weaknesses:** rare-event scenarios, unobserved pending outcomes, calibration, and out-of-distribution generalization remain open questions.
+- **Local-first execution:** development servers bind to loopback. No publicly hosted demo is claimed here.
 
-```powershell
-Set-Location D:\rescueos_starter
-python -B -m rescueos --input fixtures/demo_events.jsonl --output-dir out
-python -B -m rescueos --help
-python -B -m unittest tests.test_reporting tests.test_cli -v
-python -B -m unittest discover -s tests -v
-```
-
-Saídas: `out/summary.json` (dados estruturados), `out/report.md` (leitura humana)
-e `out/errors.json` (diagnósticos e origens físicas). O contrato versionado está
-no ADR-007 de `docs/DECISIONS.md`. Uma fração é representada por
-`{"numerator": 1, "denominator": 3}`; indisponibilidade permanece `null` com motivo,
-e nunca vira zero. COMPLETE/PARTIAL qualificam a população, não a disponibilidade.
-
-Na fixture: 3 criados, 2 entregues, 1 cancelado, 1 entrega atrasada e 1 no prazo;
-taxa de atraso 1/2 e de cancelamento 1/3. Dados e resultados são sintéticos.
-
-Códigos de saída: **0** significa relatórios publicados, inclusive quando existem
-erros de dados não fatais; **1** significa falha de leitura/escrita;
-**2** significa argumentos ou caminhos inválidos. `--help` retorna 0.
-Consulte `errors.json` mesmo após código 0: ERROR pode rejeitar um registro sem
-interromper o arquivo; WARNING aponta inconsistências e INFO registra duplicatas.
-
-O arquivo original é preservado. Destinos coincidentes com a entrada (incluindo
-hardlinks), links simbólicos e destinos que sejam diretórios são rejeitados.
-Reexecuções substituem apenas os três arquivos conhecidos. Todos são preparados
-em temporários antes da publicação, com substituição atômica por arquivo e
-restauração em falhas comuns de I/O. Não há transação contra queda de energia,
-interrupção abrupta ou escrita concorrente. Uma restauração que também falhe pode
-deixar um conjunto misto: o erro informa os backups mantidos para recuperação.
-
-Entrada/configuração idênticas geram bytes idênticos. Reordenação mantém os
-relatórios de negócio; a auditoria pode mudar por causa das linhas físicas.
-Duplicatas mudam somente auditoria. `run_id` é um hash da projeção exportada,
-não uma identificação única de tentativa ou hash dos bytes do arquivo original.
-Payloads arbitrários e linhas brutas não são exportados; errors.json mantém
-origens e hashes dos textos para consulta à entrada preservada. Nomes e caminhos
-locais podem aparecer nos diagnósticos. Não é um arquivo completo de restauração.
-
-### Simulação viva — câmera e colisões (Stage 7C)
-
-Na cena 3D, arraste com o mouse (ou um dedo no celular) para orbitar horizontalmente
-em 360° e use a roda do mouse para aproximar. **Girar 90°** faz uma rotação por clique;
-**Visão geral** retorna ao ângulo padrão. Personagens navegam ao redor de móveis;
-caixas são colocadas em bancadas/prateleiras. Trata-se de movimento cinemático
-sem dinâmica rígida, alimentado pelos pedidos sintéticos (sem chamadas à IA).
-Para validar no PowerShell: `cd frontend; npm.cmd test; npm.cmd run build;
-npx.cmd playwright test e2e/workers.spec.ts`.
+**Built as an independent AI Engineering learning and portfolio project.** Not affiliated with iFood or any delivery platform.

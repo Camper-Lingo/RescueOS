@@ -1,11 +1,19 @@
 # RescueOS — Delivery Intelligence Control Tower
 
-## Etapa 5A — The Living Restaurant
+## Etapas 5A/5B — The Living Restaurant
 
-A Control Tower local está implementada para revisão independente: restaurante 3D
+A Etapa 5A está registrada no commit `2a66164` e a Etapa 5B aprovada em `4046192`: restaurante 3D
 procedural, cinco mascotes originais, pedidos selecionáveis, replay temporal e
 painel de evidências ligados a uma API FastAPI somente leitura. Todos os dados são
-sintéticos; não há execução de agentes ou ações operacionais.
+sintéticos. A Etapa 6A (Trace) foi aprovada em `af983ee`. A Etapa 6B acrescenta
+Scout e exploração guiada de alertas, aguardando Code Review #008. Nenhuma ação
+operacional é executada.
+
+**Demonstração sem inferência real:** siga os dois comandos PowerShell com stubs
+explícitos em [`docs/SCOUT.md`](docs/SCOUT.md#demonstração-segura-no-powershell--sem-ollama).
+Scout destaca atrasos/espera observados, navega para evidências no replay e abre
+Trace por ação do usuário. O teste real de Scout não foi executado por segurança
+térmica; selecionar personagens ou quadros não inicia chamadas ao modelo.
 
 Com as dependências já instaladas e autorizadas, abra dois terminais PowerShell:
 
@@ -25,6 +33,19 @@ Abra **http://127.0.0.1:5173/**. Selecione `ord-1002`, abra as evidências e use
 reiniciar/reproduzir ou arraste a timeline. O primeiro carregamento mostra o
 snapshot final pausado. `?view=2d` abre a alternativa acessível sem a cena 3D.
 Use Ctrl+C em cada terminal para encerrar. Os serviços escutam somente em loopback.
+
+Para investigar, mantenha o Ollama/modelo **já instalado** em outro terminal:
+
+```powershell
+$env:OLLAMA_HOST = '127.0.0.1:11434'
+$env:OLLAMA_NO_CLOUD = '1'
+$env:OLLAMA_NOPRUNE = '1'
+& "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" serve
+```
+
+Selecione o pedido, abra Trace e clique **Investigar com Trace**. Integração executada
+com `qwen3:4b`; sem modelo disponível há erro e retry, sem IA simulada. Arquitetura,
+contrato e resultados reais: [`docs/TRACE.md`](docs/TRACE.md).
 
 Guia completo, versões, instalação reproduzível, testes, screenshots e limitações:
 [`docs/CONTROL_TOWER.md`](docs/CONTROL_TOWER.md). Decisões no ADR-008 de
@@ -251,3 +272,13 @@ não uma identificação única de tentativa ou hash dos bytes do arquivo origin
 Payloads arbitrários e linhas brutas não são exportados; errors.json mantém
 origens e hashes dos textos para consulta à entrada preservada. Nomes e caminhos
 locais podem aparecer nos diagnósticos. Não é um arquivo completo de restauração.
+
+### Simulação viva — câmera e colisões (Stage 7C)
+
+Na cena 3D, arraste com o mouse (ou um dedo no celular) para orbitar horizontalmente
+em 360° e use a roda do mouse para aproximar. **Girar 90°** faz uma rotação por clique;
+**Visão geral** retorna ao ângulo padrão. Personagens navegam ao redor de móveis;
+caixas são colocadas em bancadas/prateleiras. Trata-se de movimento cinemático
+sem dinâmica rígida, alimentado pelos pedidos sintéticos (sem chamadas à IA).
+Para validar no PowerShell: `cd frontend; npm.cmd test; npm.cmd run build;
+npx.cmd playwright test e2e/workers.spec.ts`.

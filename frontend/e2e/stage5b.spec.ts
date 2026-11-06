@@ -1,28 +1,8 @@
 import { test, expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
-import type { Object3D } from 'three';
-
-async function sceneState(page: Page) {
-  return page.evaluate(async () => {
-    const path = performance.getEntriesByType('resource').map(entry => entry.name).find(name => name.includes('/@react-three_fiber.js'))!;
-    const { _roots } = await import(path);
-    const state = _roots.get(document.querySelector('canvas')).store.getState();
-    return {
-      frame: state.gl.info.render.frame,
-      camera: [...state.camera.position.toArray(), ...state.camera.quaternion.toArray(), ...state.controls.target.toArray(), state.camera.zoom],
-      crew: ['scout', 'fixer', 'trace', 'runner', 'coordinator'].map(id => {
-        const root = state.scene.getObjectByName(`mascot-${id}`);
-        if (!root) throw new Error(`Missing mascot ${id}`);
-        const transforms: number[][] = [];
-        root.traverse((part: Object3D) => transforms.push([...part.position.toArray(), part.rotation.x, part.rotation.y, part.rotation.z, ...part.scale.toArray()]));
-        return { id, position: root.position.toArray() as number[], transforms };
-      }),
-    };
-  });
-}
+import { sceneState } from './scene-probe.ts';
 
 test('five original mascots animate, reduced motion freezes their transforms and HTML selection stays available', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?mode=history&sceneProbe=1');
   await expect(page.locator('canvas')).toBeVisible();
   const before = await sceneState(page);
   await expect.poll(async () => {
@@ -47,12 +27,17 @@ test('five original mascots animate, reduced motion freezes their transforms and
 });
 
 test('normal camera focus zoom and repeated overview restore real position, orientation, target and zoom', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?mode=history&sceneProbe=1');
   await expect(page.locator('canvas')).toBeVisible();
-  const bounds = (await page.locator('canvas').boundingBox())!;
-  const overviewZoom = Math.max(18, Math.min(85, Math.min(bounds.width / 14.2, bounds.height / 10.3)));
-  await expect.poll(async () => (await sceneState(page)).camera[10]).toBeCloseTo(overviewZoom, 3);
+  // Verify zoom against the size actually used by CameraRig (R3F),
+  // not an early DOM bounding box while layout is still changing.
+  await expect.poll(async () => {
+    const { camera, canvasSize: [width, height] } = await sceneState(page);
+    const expectedZoom = Math.max(18, Math.min(85, Math.min(width / 14.2, height / 10.3)));
+    return Math.abs(camera[10] - expectedZoom);
+  }, { message: 'Camera zoom must match the actual R3F canvas size' }).toBeLessThan(.005);
   const initial = (await sceneState(page)).camera;
+  const bounds = (await page.locator('canvas').boundingBox())!;
   await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
   await page.mouse.down();
   await page.mouse.move(bounds.x + bounds.width / 2 + 120, bounds.y + bounds.height / 2 + 35, { steps: 12 });
@@ -79,7 +64,7 @@ test('normal camera focus zoom and repeated overview restore real position, orie
 
 test('Runner placement follows applied courier events when seeking backward and forward', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
+  await page.goto('/?mode=history&sceneProbe=1');
   await expect(page.locator('canvas')).toBeVisible();
   for (const [frame, position, waiting] of [
     [14, [4, .16, 2.2], 'Indisponível'],

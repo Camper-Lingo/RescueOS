@@ -19,7 +19,7 @@ export default function OrderDetails({ order, selected, known, events, onEvent }
       <span className="tiny">{order.restaurant_id ?? 'Restaurante desconhecido'}</span></div>
     <div className={`quality ${order.evidence_quality === 'INCOMPLETE' ? 'warning' : ''}`}>
       <span>{order.evidence_quality === 'INCOMPLETE' ? '◈ Evidência incompleta' : '◇ Evidências disponíveis'}</span>
-      <small>{order.evidence_quality} · {order.resolution}</small></div>
+      <details><summary>Qualidade · detalhes técnicos</summary><small>{order.evidence_quality} · {order.resolution}</small></details></div>
     <p className="muted micro">Estado reconstruído dos eventos aceitos. A qualidade da evidência e a disponibilidade das métricas são avaliadas separadamente.</p>
     <div className="metric-grid">{metrics.map(name => {
       const metric = order.metrics[name];

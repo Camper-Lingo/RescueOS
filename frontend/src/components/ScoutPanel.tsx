@@ -17,7 +17,7 @@ const errors: Record<string, string> = {
 
 export default function ScoutPanel({ bundle, frameIndex, selectedOrder, active, onExplore, onNavigate, onTrace }: {
   bundle: Bundle; frameIndex: number; selectedOrder: string; active: boolean;
-  onExplore: (a: ScoutAlert | null) => void; onNavigate: (a: ScoutAlert, eventId: string) => void;
+  onExplore: (a: ScoutAlert | null, showOrder?: boolean) => void; onNavigate: (a: ScoutAlert, eventId: string) => void;
   onTrace: (a: ScoutAlert, frame: number) => void;
 }) {
   const [open, setOpen] = useState(false), [running, setRunning] = useState(false), [failed, setFailed] = useState(false);
@@ -68,12 +68,12 @@ export default function ScoutPanel({ bundle, frameIndex, selectedOrder, active, 
     }
   };
   const highlights = new Set(result?.highlighted_alert_ids);
-  return <section className="scout-panel" aria-label="Análise Scout">
+  return <section id="scout-panel" tabIndex={-1} className="scout-panel" aria-label="Análise Scout">
     <button className="scout-toggle" aria-expanded={open} onClick={() => { if (open && running) cancel(); setOpen(!open); }}>
       ◈ {open ? 'Fechar painel Scout' : 'Abrir painel Scout'}</button>
     {open && <div className="scout-content">
       <div><span className="eyebrow">Scout · inteligência operacional</span><h2>O que merece atenção?</h2>
-        <p>Um retrato do quadro selecionado. Regras verificáveis, sem previsões ou ações automáticas.</p></div>
+        <p>Encontre ocorrências nos pedidos deste instante. O botão abaixo solicita uma análise com IA local; não inicia ações automáticas.</p></div>
       <div className="agent-actions"><button className="primary" disabled={running} onClick={analyze}>Analisar restaurante</button>
         {running && <button onClick={cancel}>Cancelar análise</button>}</div>
       <p data-testid="scout-status" aria-live="polite" className={failed ? 'trace-error' : ''}>{message}</p>
@@ -96,12 +96,13 @@ export default function ScoutPanel({ bundle, frameIndex, selectedOrder, active, 
               <span className="alert-category">{({ attention: 'Atenção', information: 'Informação', evidence: 'Evidência' })[alert.category]}</span>
               <strong>{alert.title}</strong><span>{alert.order_id ?? 'Auditoria do arquivo'}</span>
               {alert.value !== null && <b>{rationalText(alert.value)} min</b>}
-              {highlights.has(alert.alert_id) && <small>{result.mode === 'test' ? 'Destaque do stub' : 'Destaque da IA'}</small>}
+              {highlights.has(alert.alert_id) && <small title="O modelo selecionou esta ocorrência do catálogo verificado; não criou o fato.">{result.mode === 'test' ? 'Destaque do stub' : 'Sugerido pela IA para explorar'}</small>}
             </button>
             {selected && <div className="scout-alert-detail">
               <p>{alert.explanation}</p>
+              {alert.order_id !== null && <button onClick={() => onExplore(alert, true)}>Ver pedido</button>}
               <p className="micro muted">{alert.zone ? `Zona lógica relacionada: ${ZONE_NAMES[alert.zone]}.` : 'Sem localização espacial atribuída ao evento.'}</p>
-              {alert.anchor_event_id && <button onClick={() => onNavigate(alert, alert.anchor_event_id!)}>Ver o que aconteceu</button>}
+              {alert.anchor_event_id && <button onClick={() => onNavigate(alert, alert.anchor_event_id!)}>Assistir ao ocorrido</button>}
               {!!steps.length && <div className="incident-steps" aria-label="Passos verificados do alerta">{steps.map(step => <button key={step.id}
                 data-testid={`scout-step-${step.id}`} onClick={() => onNavigate(alert, step.id)}>
                 Quadro {step.index + 1} · {EVENT_LABELS[bundle.replay.events[step.index].type]} <small>{step.id} · {bundle.replay.events[step.index].occurred_at}</small>
@@ -114,7 +115,7 @@ export default function ScoutPanel({ bundle, frameIndex, selectedOrder, active, 
         })}</div>
         <p className="micro muted">{result.unknowns!.join(' ')}</p>
       </div>}
-      {!!events.length && <details><summary>Inspecionar execução Scout</summary><p>{events.filter(e => e.type === 'tool_result').length} ferramentas concluídas.</p>
+      {!!events.length && <details><summary>Inspecionar execução Scout · detalhes técnicos</summary><p>{events.filter(e => e.type === 'tool_result').length} ferramentas concluídas.</p>
         <pre>{JSON.stringify(events, null, 2)}</pre></details>}
     </div>}
   </section>;

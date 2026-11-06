@@ -4,8 +4,8 @@ import { CanvasTexture, SRGBColorSpace } from 'three';
 import type { Zone } from '../../simulation/replay.ts';
 import SceneLabel from '../SceneLabel.tsx';
 
-function Box({ at, size, color, radius = .08 }: { at: [number, number, number]; size: [number, number, number]; color: string; radius?: number }) {
-  return <RoundedBox args={size} radius={radius} smoothness={2} position={at} castShadow receiveShadow><meshStandardMaterial color={color} roughness={.83} /></RoundedBox>;
+function Box({ at, size, color, radius = .08, opacity = 1 }: { at: [number, number, number]; size: [number, number, number]; color: string; radius?: number; opacity?: number }) {
+  return <RoundedBox args={size} radius={radius} smoothness={2} position={at} castShadow receiveShadow><meshStandardMaterial color={color} roughness={.83} transparent={opacity < 1} opacity={opacity} depthWrite={opacity >= 1} /></RoundedBox>;
 }
 function Plant({ at }: { at: [number, number, number] }) {
   return <group position={at}>
@@ -33,23 +33,29 @@ function Floor() {
   </mesh>;
 }
 
-export default function Restaurant({ focus, onFocus, kitchenActive, diagnostics }: {
-  focus: Zone | null; onFocus: (zone: Zone) => void; kitchenActive: boolean; diagnostics: number;
+export default function Restaurant({ focus, onFocus, kitchenActive, diagnostics, openView = false }: {
+  focus: Zone | null; onFocus: (zone: Zone) => void; kitchenActive: boolean; diagnostics: number; openView?: boolean;
 }) {
   return <group name="restaurant-environment">
     <Box at={[0, -.25, 0]} size={[10.5, .5, 7.9]} radius={.24} color="#1b353c" />
     <Box at={[0, .035, 0]} size={[10.1, .13, 7.5]} radius={.15} color="#ded9ca" />
     <Box at={[0, -.42, 0]} size={[10.1, .13, 7.5]} radius={.15} color="#af8960" />
     <Floor />
+    {/* Estante para pedidos recém-recebidos: cada pacote fica apoiado numa prateleira. */}
+    {openView && <group name="intake-parcel-rack">
+      {[.72, 1.40].map(y => <Box key={y} at={[0, y, 3.25]} size={[3.04, .12, .66]} color="#779991" radius={.035}/>)}
+      {[-1.37, 1.37].flatMap(x => [3.01, 3.49].map(z =>
+        <Box key={`${x}-${z}`} at={[x, .78, z]} size={[.09, 1.35, .09]} color="#5a7979" radius={.025}/>))}
+    </group>}
     <mesh position={[0, -.22, 3.947]}><boxGeometry args={[9.7, .025, .015]} /><meshStandardMaterial color="#9bdbbe" emissive="#6aa68c" emissiveIntensity={.6} /></mesh>
     <Box at={[-2.55, .12, -1.5]} size={[4.6, .018, 3.8]} color={focus === 'kitchen' ? '#e5c69e' : '#dcd5bf'} />
     <Box at={[2.55, .12, -1.5]} size={[4.55, .018, 3.8]} color={focus === 'pickup' ? '#a6cabb' : '#c8d6c9'} />
     <Box at={[-2.8, .12, 2.2]} size={[3.95, .018, 2.55]} color={focus === 'incident' ? '#c0b2d1' : '#d7d0da'} />
     <Box at={[2.7, .12, 2.45]} size={[4.1, .018, 2.05]} color={focus === 'command' ? '#a7c8d2' : '#ced9d5'} />
-    <Box at={[0, .91, -3.55]} size={[10, 1.75, .18]} color="#f2e5ce" />
-    <Box at={[-4.95, .65, -.7]} size={[.18, 1.2, 5.5]} color="#efe0c3" />
-    <Box at={[0, 1.8, -3.55]} size={[10.05, .13, .24]} color="#c99e73" />
-    <Box at={[-4.95, 1.29, -.7]} size={[.24, .12, 5.5]} color="#c99e73" />
+    <Box at={[0, .91, -3.55]} size={[10, 1.75, .18]} color="#f2e5ce" opacity={openView ? .12 : 1} />
+    <Box at={[-4.95, .65, -.7]} size={[.18, 1.2, 5.5]} color="#efe0c3" opacity={openView ? .12 : 1} />
+    <Box at={[0, 1.8, -3.55]} size={[10.05, .13, .24]} color="#c99e73" opacity={openView ? .23 : 1} />
+    <Box at={[-4.95, 1.29, -.7]} size={[.24, .12, 5.5]} color="#c99e73" opacity={openView ? .23 : 1} />
     <Box at={[0, 1.42, -3.44]} size={[9.75, .1, .025]} color="#517b73" radius={.01} />
     <Box at={[-2.6, .61, -2.75]} size={[4.15, .92, .9]} color="#43616b" />
     <Box at={[-2.6, 1.1, -2.75]} size={[4.3, .13, 1.02]} color="#faf1d9" />

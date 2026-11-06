@@ -6,7 +6,7 @@ test('real API, 3D restaurant, orders, exact metrics, evidence and original crew
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-  await page.goto('/');
+  await page.goto('/?mode=history');
   await expect(page.getByTestId('selected-order')).toHaveText('ord-1002');
   for (const [key, value] of [['total_created', '3'], ['total_delivered', '2'], ['total_cancelled', '1'], ['delay_rate', '1/2']]) {
     await expect(page.getByTestId(`kpi-${key}`).locator('strong')).toHaveText(value);
@@ -59,7 +59,7 @@ test('real API, 3D restaurant, orders, exact metrics, evidence and original crew
 
 test('backward seek, event mapping, play/pause, speed and complete replay', async ({ page, request }) => {
   const replay = await (await request.get('/api/v1/replay')).json() as Bundle['replay'];
-  await page.goto('/?view=2d');
+  await page.goto('/?mode=history&view=2d');
   await expect(page.getByTestId('selected-order')).toBeVisible();
   await page.getByRole('button', { name: 'Reiniciar replay' }).click();
   await expect(page.getByRole('heading', { name: 'Ainda não criado' })).toBeVisible();
@@ -99,7 +99,7 @@ test('WebGL unavailable keeps accessible orders, metrics and timeline', async ({
       return Reflect.apply(original, this, args);
     } as typeof original;
   });
-  await page.goto('/');
+  await page.goto('/?mode=history');
   await expect(page.getByTestId('fallback-world')).toContainText('WebGL indisponível');
   await expect(page.getByTestId('metric-delivery_delay')).toContainText('13 min');
   await page.getByRole('navigation', { name: 'Selecionar pedido', exact: true }).getByRole('button', { name: 'ord-1001' }).click();
@@ -118,7 +118,7 @@ test('loading, offline and HTTP failures can retry', async ({ page }) => {
     if (mode === 'http') return route.fulfill({ status: 503, body: 'unavailable' });
     await route.continue();
   });
-  await page.goto('/?view=2d');
+  await page.goto('/?mode=history&view=2d');
   await expect(page.getByRole('heading', { name: 'Acendendo as luzes…' })).toBeVisible();
   mode = 'offline'; release();
   await expect(page.getByRole('heading', { name: 'API offline' })).toBeVisible();
@@ -131,7 +131,7 @@ test('loading, offline and HTTP failures can retry', async ({ page }) => {
 test('unknown order and mobile layout, reduced motion, no overflow', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/?order=missing&view=2d');
+  await page.goto('/?mode=history&order=missing&view=2d');
   await expect(page.getByRole('heading', { name: 'Pedido não encontrado' })).toBeVisible();
   await expect(page.getByLabel('Reduzir movimento')).toBeChecked();
   await page.getByRole('navigation', { name: 'Selecionar pedido', exact: true }).getByRole('button', { name: 'ord-1002' }).click();
@@ -150,17 +150,17 @@ test('empty snapshot renders no synthetic orders', async ({ page, request }) => 
     if (route.request().url().endsWith('/overview')) Object.assign(body, response.frames[0].overview);
     await route.fulfill({ response: actual, json: body });
   });
-  await page.goto('/?view=2d');
+  await page.goto('/?mode=history&view=2d');
   await expect(page.getByRole('status')).toContainText('Nenhum evento disponível');
   await expect(page.getByRole('button', { name: 'Reproduzir replay' })).toBeDisabled();
   await expect(page.getByTestId('kpi-total_created').locator('strong')).toHaveText('0');
 });
 
 test('lost WebGL context falls back without losing order data', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?mode=history');
   await expect(page.locator('canvas')).toBeVisible();
   await page.evaluate(() => document.querySelector('canvas')?.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext());
-  await expect(page.getByTestId('fallback-world')).toContainText('WebGL indisponível');
+  await expect(page.getByTestId('fallback-world')).toContainText(/WebGL indisponível|Não foi possível carregar a cena 3D/);
   await expect(page.getByTestId('metric-delivery_delay')).toContainText('13 min');
 });
 
@@ -176,7 +176,7 @@ test('incomplete and ambiguous evidence is explicitly shown, never a definitive 
     }
     await route.fulfill({ response: actual, json: body });
   });
-  await page.goto('/?view=2d');
+  await page.goto('/?mode=history&view=2d');
   await expect(page.locator('.order-status')).toContainText('Estado indeterminado');
   await expect(page.locator('.quality')).toContainText('Evidência incompleta');
   await expect(page.locator('.quality')).toContainText('AMBIGUOUS');

@@ -40,7 +40,7 @@ test('Scout explores real evidence in 3D and hands the correct order and frame t
   let scoutCalls = 0, traceCalls = 0;
   await page.route('**/api/v1/scout/analyze', route => { scoutCalls++; return route.fulfill({ contentType: 'application/x-ndjson', body: fixtures[20] }); });
   await page.route('**/api/v1/trace/investigate', route => { traceCalls++; return route.fulfill({ contentType: 'application/x-ndjson', body: trace }); });
-  await page.goto('/?order=ord-1001');
+  await page.goto('/?mode=history&order=ord-1001');
   await expect(page.locator('canvas')).toBeVisible();
   await page.screenshot({ path: '../out/stage6b-overview.png', fullPage: true });
   await page.getByRole('button', { name: /SCOUT.*Operações/ }).click();
@@ -57,7 +57,7 @@ test('Scout explores real evidence in 3D and hands the correct order and frame t
   await expect.poll(async () => (await scene(page)).highlighted).toBe(true);
   await expect.poll(async () => (await scene(page)).target[0]).toBeCloseTo(2.4, 2);
   await page.screenshot({ path: '../out/stage6b-alert-highlight.png', fullPage: true });
-  await waitAlert(page).getByRole('button', { name: 'Ver o que aconteceu', exact: true }).click();
+  await waitAlert(page).getByRole('button', { name: 'Assistir ao ocorrido', exact: true }).click();
   await expect(page.getByTestId('frame-index')).toContainText('15 / 20');
   await expect(page.getByTestId('scout-pinned-context')).toContainText('Análise fixada no quadro 20');
   await expect(page.getByTestId('selected-order')).toHaveText('ord-1002');
@@ -96,7 +96,7 @@ for (const change of ['frame', 'order']) test(`Scout discards delayed results af
     const data = fixtures[frame].trim().split('\n').map(line => ({ ...JSON.parse(line), run_id: (first ? 'a' : 'b').repeat(8) + '-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }));
     await route.fulfill({ contentType: 'application/x-ndjson', body: data.map(e => JSON.stringify(e)).join('\n') + '\n' }).catch(() => {});
   });
-  await page.goto('/?view=2d'); await scout(page).getByRole('button', { name: 'Abrir painel Scout' }).click();
+  await page.goto('/?mode=history&view=2d'); await scout(page).getByRole('button', { name: 'Abrir painel Scout' }).click();
   const analyze = scout(page).getByRole('button', { name: 'Analisar restaurante', exact: true });
   await analyze.click(); await expect.poll(() => calls).toBe(1); await expect(analyze).toBeDisabled();
   if (change === 'frame') await page.getByRole('slider', { name: 'Posição na timeline' }).fill('15');
@@ -104,7 +104,7 @@ for (const change of ['frame', 'order']) test(`Scout discards delayed results af
   await expect(page.getByTestId('scout-status')).toContainText('contexto mudou');
   await expect(analyze).toBeEnabled(); await analyze.click();
   await expect(page.getByTestId('scout-status')).toHaveText('Análise concluída.'); release();
-  await scout(page).getByText('Inspecionar execução Scout', { exact: true }).click();
+  await scout(page).getByText('Inspecionar execução Scout · detalhes técnicos', { exact: true }).click();
   await expect(scout(page).locator('pre').last()).toContainText('bbbbbbbb-aaaa');
   await expect(scout(page).locator('pre').last()).not.toContainText('aaaaaaaa-aaaa');
   if (change === 'frame') await expect(page.getByTestId('scout-alert-DELIVERY_DELAY')).toHaveCount(0);
@@ -122,7 +122,7 @@ test('Scout provider errors and cancellation are explicit and retry remains func
     if (n === 2) await gate;
     await route.fulfill({ contentType: 'application/x-ndjson', body: fixtures[20] }).catch(() => {});
   });
-  await page.goto('/?view=2d'); await scout(page).getByRole('button', { name: 'Abrir painel Scout' }).click();
+  await page.goto('/?mode=history&view=2d'); await scout(page).getByRole('button', { name: 'Abrir painel Scout' }).click();
   const analyze = scout(page).getByRole('button', { name: 'Analisar restaurante', exact: true });
   await analyze.click(); await expect(page.getByTestId('scout-status')).toContainText('Modelo local indisponível');
   await expect(page.getByTestId('scout-result')).toHaveCount(0);
@@ -141,7 +141,7 @@ test('Scout works with keyboard, reduced motion, mobile and unavailable WebGL', 
     } as typeof original;
   });
   await page.route('**/api/v1/scout/analyze', route => route.fulfill({ contentType: 'application/x-ndjson', body: fixtures[20] }));
-  await page.goto('/'); await expect(page.getByTestId('fallback-world')).toBeVisible();
+  await page.goto('/?mode=history'); await expect(page.getByTestId('fallback-world')).toBeVisible();
   const mascot = page.getByRole('button', { name: /SCOUT.*Operações/ }); await mascot.focus(); await page.keyboard.press('Enter');
   await scout(page).getByRole('button', { name: 'Analisar restaurante', exact: true }).click();
   await expect(page.getByTestId('scout-result')).toBeVisible();
@@ -149,7 +149,7 @@ test('Scout works with keyboard, reduced motion, mobile and unavailable WebGL', 
   await expect(page.getByTestId('fallback-world')).toContainText('Alerta selecionado');
   await expect(page.getByLabel('Reduzir movimento')).toBeChecked();
   await page.screenshot({ path: '../out/stage6b-mobile.png', fullPage: true });
-  await waitAlert(page).getByRole('button', { name: 'Ver o que aconteceu', exact: true }).click();
+  await waitAlert(page).getByRole('button', { name: 'Assistir ao ocorrido', exact: true }).click();
   await expect(page.getByTestId('frame-index')).toContainText('15 / 20');
   await page.screenshot({ path: '../out/stage6b-fallback.png', fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
@@ -167,7 +167,7 @@ test('Scout rejects a coordinated forged value and recovers on retry', async ({ 
     }
     return route.fulfill({ contentType: 'application/x-ndjson', body: data.map(e => JSON.stringify(e)).join('\n') + '\n' });
   });
-  await page.goto('/?view=2d'); await scout(page).getByRole('button', { name: 'Abrir painel Scout' }).click();
+  await page.goto('/?mode=history&view=2d'); await scout(page).getByRole('button', { name: 'Abrir painel Scout' }).click();
   const analyze = scout(page).getByRole('button', { name: 'Analisar restaurante', exact: true });
   await analyze.click(); await expect(page.getByTestId('scout-status')).toContainText('inválida');
   await expect(page.getByTestId('scout-result')).toHaveCount(0);
@@ -176,7 +176,7 @@ test('Scout rejects a coordinated forged value and recovers on retry', async ({ 
   const delivery = page.getByTestId('scout-alert-DELIVERY_DELAY');
   await delivery.getByRole('button', { name: 'Entrega após o prazo', exact: false }).click();
   await expect(delivery).toContainText('Sem localização espacial atribuída');
-  await delivery.getByRole('button', { name: 'Ver o que aconteceu', exact: true }).click();
+  await delivery.getByRole('button', { name: 'Assistir ao ocorrido', exact: true }).click();
   await expect(page.getByTestId('frame-index')).toContainText('20 / 20');
   await expect(page.getByRole('button', { name: 'Visão geral', exact: true })).toHaveAttribute('aria-pressed', 'true');
   expect(calls).toBe(2);

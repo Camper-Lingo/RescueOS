@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "node --test src/simulation/replay.test.ts src/api/client.test.ts src/api/review005.test.ts",
+    "test": "node --test src/simulation/replay.test.ts src/simulation/live.test.ts src/simulation/nightBalance.test.ts src/simulation/crewMotion.test.ts src/simulation/visualRoles.test.ts src/simulation/daySummary.test.ts src/simulation/nightClock.test.ts src/simulation/crew.test.ts src/simulation/navigation.test.ts src/api/client.test.ts src/api/review005.test.ts src/api/trace.test.ts src/api/scout.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

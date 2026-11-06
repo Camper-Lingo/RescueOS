@@ -1114,3 +1114,75 @@ na raiz, `.venv\Scripts\python.exe -B -m unittest discover -s tests -v`; em fron
 `npm.cmd test` e `npx.cmd playwright test` (provedores de teste são stubs/mocks).
 Somente OrderParcel, SceneLabel, testes correspondentes e este registro alterados.
 Contratos, fixtures e segurança preservados; sem Ollama real, instalação ou commit.
+
+## Stage 7A — Simulação viva (incremento local, não homologado)
+
+Modo `Simulação viva` no topo do frontend. O histórico, Scout/Trace e fixtures continuam isolados deste motor.
+A simulação roda inteiramente no navegador com semente fixa `2026`, gerador de pedidos sintéticos,
+capacidade de preparo de duas unidades e filas FIFO. Botões de começar/pausar/reiniciar,
+velocidades 1×/2×/4×, pedidos clicáveis e estados contextuais dos monstrinhos.
+Movimento de Runner/Coordinator é dirigido por regras e **não** representa agente LLM.
+
+Testes puros do motor: `cd frontend; npm.cmd test` (inclui `src/simulation/live.test.ts`).
+Validar manualmente os modos Histórico e Simulação, 3D/2D, tutorial existente e seleção.
+O componente LiveExperience e a cena ainda precisam de `npm.cmd run build` e validação Playwright
+no PC com dependências já instaladas; nenhum benchmark/LLM foi executado neste incremento.
+Não registrar pedidos sintéticos do novo motor como evidências verificadas do histórico.
+
+## Stage 7C — colisões cinemáticas e órbita 360° (local; conferir Windows)
+
+Na Simulação Viva, `simulation/navigation.ts` define obstáculos estáticos de mesas,
+bancadas, estante, plantas e limites do piso; `CrewNavigator` busca rotas por
+quinas livres, avança com velocidade limitada e impede sobreposição entre mascotes.
+Em pausa, congela movimento; em reduced motion, reposiciona sem animação.
+Pacotes usam slots exclusivos (`parcelPlacement.ts`) apoiados nas bancadas e
+na nova estante de entrada, com pop de chegada, sem interpolação através de móveis;
+caixas em trânsito acompanham o Runner. Excesso de pedidos permanece na lista.
+A câmera pode orbitar 360° horizontalmente com mouse/toque, além do botão 90°.
+Paredes ficam translúcidas na simulação para leitura das vistas traseiras.
+
+É navegação cinemática de demonstração, **não física rígida / gravidade real**.
+Sem alterações no backend, replay auditado, segurança ou na lógica de pedidos.
+Testes puros: `cd frontend; npm.cmd test`; validação Windows:
+`npm.cmd run build` e `npx.cmd playwright test e2e/workers.spec.ts`.
+Não executar LLM para esse fluxo.
+
+### Stage 7D — Noites simuladas, incidentes e motoboys
+
+Simulação viva isolada dos snapshots auditados, sem rede/LLM. No topo, selecionar
+**Noite vazia / média / cheia** reinicia a simulação; mesmo cenário e seed 2026
+produzem os mesmos eventos. A noite cheia usa maior chegada de pedidos e
+introduz **atrasos de motoboys, retrabalho e falha na cozinha** no minuto 6.
+Quando a cozinha falha, o progresso dos preparos fica congelado por 4 minutos;
+Fixer executa um reparo simulado baseado em regra e o evento fica registrado.
+Scout sinaliza problemas; Trace lê o log do simulador, sem inferência de IA;
+Coordinator acompanha FIFO; Runner leva pacotes à retirada. A coleta externa
+é feita pelos motoboys 3D, que só aparecem após a chegada registrada e levam
+o pacote quando já está pronto. Até 3 motoboys aparecem simultaneamente na cena
+por desempenho; todos seguem representados nos dados e nos indicadores.
+
+Testes dirigidos no Windows: `cd frontend; npm.cmd test; npm.cmd run build;
+npx.cmd playwright test e2e/live-scenarios.spec.ts e2e/workers.spec.ts`.
+Não executar Ollama real. Sem integração com produção. A movimentação 3D é
+cinemática e a navegação dos motoboys é simplificada (não é física rígida).
+
+
+### Stage 7G — Calibragem, rota sintética e reações dos NPCs
+
+Ajustamos as probabilidades de entrada por cenário (vazia 0,16; média 0,27; cheia 0,50 por minuto), com corte de novos pedidos no minuto 43. Os minutos 44–60 servem para processar/entregar o que já foi aceito; o painel de fechamento permanece no minuto 60, e pendências não são falsamente marcadas como entregues ou atrasadas.
+
+Tempo de entrega de cada motoboy usa distância e velocidade **fictícias** (km e km/h). O prazo prometido considera preparo previsto, trajeto, tempo de manuseio e parte da fila observada **no momento da criação**; não é recalculado retroativamente para maquiar atrasos. A cozinha mantém duas bancadas; incidentes de falha/retrabalho continuam alterando o fluxo. As taxas variam conforme a semente: um ensaio de 15 sementes registrou ~95% pontualidade entre entregues em noite vazia, ~92% em média e ~48% em cheia; valores são sintéticos e não garantidos para toda noite.
+
+`crewMotion.ts` define estados visuais (`idle`, `walk`, `work`, `react`, `still`) e transição interpolada, com micro-ações desencontradas para os cinco mascotes. Personagens não têm LLM automático. A pausa desativa ações de trabalho; a opção reduzir movimento mantém as poses estáticas. As colisões do `CrewNavigator` continuam responsáveis pela navegação.
+
+Testes: `cd frontend; npm.cmd test; npm.cmd run build; npx.cmd playwright test e2e/day-summary.spec.ts e2e/live-scenarios.spec.ts e2e/workers.spec.ts`. Sem chamadas Ollama.
+
+
+## Stage 7H — leitura visual de pedidos e cozinheiro (patch incremental sobre 7G)
+
+- Três modelos de baixo custo geométrico são escolhidos pelo estado canônico da simulação: comanda vertical (QUEUED), panela e alimento (PREPARING), sacola lacrada (READY). DELIVERED conserva uma sacola de conclusão; PICKED_UP não gera duplicação na bancada.
+- `src/simulation/visualRoles.ts` é a fonte da correspondência visual e do estado de trabalho do cozinheiro; não altera o motor, os prazos ou os relatórios.
+- O cozinheiro é funcionário visual **não-LLM**: aguarda, prepara ou interrompe a atividade durante a falha. Pode ser selecionado na cena ou na lista de equipe; não é sexto agente.
+- A animação congela ao pausar, respeita a preferência de movimento reduzido, e roda dentro do `useFrame` do Three.js sem timers próprios.
+- Para verificar: `cd frontend; npm.cmd run build; npm.cmd test; npx.cmd playwright test e2e/visual-roles.spec.ts`.
+- Revisar em desktop e mobile: comanda/panela/sacola reconhecíveis em ângulos de câmera diferentes, seleção e etiquetas visíveis e ausência de interpenetração com a bancada.

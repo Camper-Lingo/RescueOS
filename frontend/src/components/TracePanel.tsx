@@ -64,11 +64,11 @@ export default function TracePanel({ orderId, replay, frameIndex, available, act
   const state = result?.facts?.find(f => f.fact_id === 'state');
   const early = result?.facts?.find(f => f.fact_id === 'metric.delivery_earliness');
   const primary = [(early && BigInt((early.value as Rational).numerator) > 0n) ? 'delivery_earliness' : 'delivery_delay', 'kitchen_delay', 'courier_waiting_time'];
-  return <section className="trace-panel" aria-label="Investigação Trace">
+  return <section id="trace-panel" tabIndex={-1} className="trace-panel" aria-label="Investigação Trace">
     <button className="trace-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>◇ {open ? 'Fechar painel Trace' : 'Abrir painel Trace'}</button>
     {open && <div className="trace-content">
       <h3>Trace · investigação de evidências</h3>
-      <p>LLM local com ferramentas somente leitura. Nenhuma ação corretiva ou atribuição de culpa.</p>
+      <p>Entenda o que aconteceu com este pedido usando fatos e fontes. O botão solicita IA local; nenhuma ação corretiva ou atribuição de culpa.</p>
       <button className="primary" onClick={investigate} disabled={running || !available}>Investigar com Trace</button>
       {running && <button onClick={() => { controller.current?.abort(); controller.current = null; setRunning(false); setResult(null); setMessage('Investigação cancelada pelo usuário.'); }}>Cancelar investigação</button>}
       {!available && <p>O pedido ainda não possui projeção neste quadro.</p>}

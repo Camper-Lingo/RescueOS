@@ -75,7 +75,7 @@ async function compareRing(page: Page, id: string, label: string) {
 async function highlight(page: Page) {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.route('**/api/v1/scout/analyze', route => route.fulfill({ contentType: 'application/x-ndjson', body: stream }));
-  await page.goto('/?order=ord-1001');
+  await page.goto('/?mode=history&order=ord-1001');
   await expect(page.locator('canvas')).toBeVisible();
   await page.getByRole('button', { name: /SCOUT.*Opera/ }).click();
   await page.getByRole('button', { name: 'Analisar restaurante', exact: true }).click();
@@ -132,7 +132,7 @@ test('Scout UI rejects false cancellation and arbitrary blame, then accepts a va
     }
     return route.fulfill({ contentType: 'application/x-ndjson', body: events.map(e => JSON.stringify(e)).join('\n') + '\n' });
   });
-  await page.goto('/?view=2d');
+  await page.goto('/?mode=history&view=2d');
   await page.getByRole('button', { name: 'Abrir painel Scout' }).click();
   const analyze = page.getByRole('button', { name: 'Analisar restaurante', exact: true });
   await analyze.click();

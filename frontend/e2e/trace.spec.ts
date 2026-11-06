@@ -20,7 +20,7 @@ asyncio.run(main())
 test('Trace opens from mascot, shows audited facts and links evidence without changing replay on start', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.route('**/api/v1/trace/investigate', route => route.fulfill({ contentType: 'application/x-ndjson', body: fixtures[20] }));
-  await page.goto('/');
+  await page.goto('/?mode=history');
   await page.getByRole('button', { name: /TRACE.*Evidências/ }).click();
   await page.getByRole('button', { name: 'Investigar com Trace', exact: true }).click();
   await expect(page.getByTestId('trace-status')).toHaveText('Investigação concluída.');
@@ -48,7 +48,7 @@ test('Trace provider failure remains visible and retry succeeds', async ({ page 
     const failure = JSON.stringify(started) + '\n' + JSON.stringify({ ...started, type: 'error', code: 'MODEL_UNAVAILABLE', tool_history: [] }) + '\n';
     return route.fulfill({ contentType: 'application/x-ndjson', body: ++calls === 1 ? failure : fixtures[20] });
   });
-  await page.goto('/?view=2d');
+  await page.goto('/?mode=history&view=2d');
   await page.getByRole('button', { name: 'Abrir painel Trace' }).click();
   await page.getByRole('button', { name: 'Investigar com Trace', exact: true }).click();
   await expect(page.getByTestId('trace-status')).toContainText('Modelo local indisponível');
@@ -67,7 +67,7 @@ test('Trace cancels and a subsequent investigation uses only the selected frame'
     if (++calls === 1) await new Promise(resolve => setTimeout(resolve, 1000));
     await route.fulfill({ contentType: 'application/x-ndjson', body: fixtures[scope.frame_index] }).catch(() => {});
   });
-  await page.goto('/?view=2d');
+  await page.goto('/?mode=history&view=2d');
   await page.getByRole('button', { name: 'Abrir painel Trace' }).click();
   await page.getByRole('button', { name: 'Investigar com Trace', exact: true }).click();
   await expect.poll(() => scopes.length).toBe(1);

@@ -1,0 +1,195 @@
+{
+  "objective": "Classificar risco de ENTREGA ATRASADA no instante de criação de pedido",
+  "dataset": "Somente noites fictícias do motor RescueOS 7G/7H",
+  "split": "Por semente: cada semente fica inteira em treino OU teste; nenhum pedido se repete",
+  "features": "Apenas atributos observáveis no momento de criação, sem timestamps futuros nem rótulo",
+  "limitations": [
+    "Exemplos pendentes foram excluídos do treino e da avaliação: viés de seleção possível",
+    "Simulador sintético não valida desempenho em dados reais de delivery",
+    "Taxas e desempenho podem variar com sementes, configurações e versão do motor",
+    "Métrica F1 é da classe atrasado; resultados dependem da prevalência de atraso"
+  ],
+  "counts": {
+    "train_nights": 360,
+    "test_nights": 90,
+    "train_delivered": 3942,
+    "test_delivered": 991,
+    "train_pending_excluded": 1083,
+    "test_pending_excluded": 254,
+    "test_late_fraction": 0.2563
+  },
+  "metrics": {
+    "always_majority": {
+      "precision_late": 0.0,
+      "recall_late": 0.0,
+      "f1_late": 0.0,
+      "balanced_accuracy": 0.5,
+      "confusion": {
+        "true_negative": 737,
+        "false_positive": 0,
+        "false_negative": 254,
+        "true_positive": 0
+      }
+    },
+    "fixed_rule": {
+      "precision_late": 0.7348,
+      "recall_late": 0.6654,
+      "f1_late": 0.6983,
+      "balanced_accuracy": 0.7913,
+      "confusion": {
+        "true_negative": 676,
+        "false_positive": 61,
+        "false_negative": 85,
+        "true_positive": 169
+      }
+    },
+    "logistic_regression": {
+      "precision_late": 0.7209,
+      "recall_late": 0.9252,
+      "f1_late": 0.8103,
+      "balanced_accuracy": 0.9009,
+      "confusion": {
+        "true_negative": 646,
+        "false_positive": 91,
+        "false_negative": 19,
+        "true_positive": 235
+      }
+    }
+  },
+  "per_scenario": {
+    "quiet": {
+      "examples": 233,
+      "late_fraction": 0.0258,
+      "model": {
+        "precision_late": 0.6,
+        "recall_late": 0.5,
+        "f1_late": 0.5455,
+        "balanced_accuracy": 0.7456,
+        "confusion": {
+          "true_negative": 225,
+          "false_positive": 2,
+          "false_negative": 3,
+          "true_positive": 3
+        }
+      }
+    },
+    "medium": {
+      "examples": 358,
+      "late_fraction": 0.0475,
+      "model": {
+        "precision_late": 0.2414,
+        "recall_late": 0.4118,
+        "f1_late": 0.3043,
+        "balanced_accuracy": 0.6736,
+        "confusion": {
+          "true_negative": 319,
+          "false_positive": 22,
+          "false_negative": 10,
+          "true_positive": 7
+        }
+      }
+    },
+    "busy": {
+      "examples": 400,
+      "late_fraction": 0.5775,
+      "model": {
+        "precision_late": 0.7705,
+        "recall_late": 0.974,
+        "f1_late": 0.8604,
+        "balanced_accuracy": 0.7888,
+        "confusion": {
+          "true_negative": 102,
+          "false_positive": 67,
+          "false_negative": 6,
+          "true_positive": 225
+        }
+      }
+    }
+  },
+  "model_errors_sample": [
+    {
+      "seed": 1000,
+      "scenario": "quiet",
+      "order_id": "sim-006",
+      "expected_late": 1,
+      "predicted_late": 0
+    },
+    {
+      "seed": 1000,
+      "scenario": "medium",
+      "order_id": "sim-007",
+      "expected_late": 0,
+      "predicted_late": 1
+    },
+    {
+      "seed": 1000,
+      "scenario": "busy",
+      "order_id": "sim-008",
+      "expected_late": 0,
+      "predicted_late": 1
+    },
+    {
+      "seed": 1000,
+      "scenario": "busy",
+      "order_id": "sim-011",
+      "expected_late": 0,
+      "predicted_late": 1
+    },
+    {
+      "seed": 1005,
+      "scenario": "medium",
+      "order_id": "sim-001",
+      "expected_late": 0,
+      "predicted_late": 1
+    },
+    {
+      "seed": 1005,
+      "scenario": "busy",
+      "order_id": "sim-003",
+      "expected_late": 1,
+      "predicted_late": 0
+    },
+    {
+      "seed": 1010,
+      "scenario": "medium",
+      "order_id": "sim-003",
+      "expected_late": 1,
+      "predicted_late": 0
+    },
+    {
+      "seed": 1010,
+      "scenario": "busy",
+      "order_id": "sim-007",
+      "expected_late": 0,
+      "predicted_late": 1
+    },
+    {
+      "seed": 1010,
+      "scenario": "busy",
+      "order_id": "sim-009",
+      "expected_late": 0,
+      "predicted_late": 1
+    },
+    {
+      "seed": 1015,
+      "scenario": "medium",
+      "order_id": "sim-003",
+      "expected_late": 0,
+      "predicted_late": 1
+    },
+    {
+      "seed": 1020,
+      "scenario": "medium",
+      "order_id": "sim-001",
+      "expected_late": 1,
+      "predicted_late": 0
+    },
+    {
+      "seed": 1020,
+      "scenario": "busy",
+      "order_id": "sim-003",
+      "expected_late": 0,
+      "predicted_late": 1
+    }
+  ]
+}

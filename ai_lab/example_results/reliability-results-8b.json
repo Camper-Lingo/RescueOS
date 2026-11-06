@@ -1,0 +1,193 @@
+{
+  "schema": "rescueos.reliability.v1",
+  "mode": "offline-stub-no-llm",
+  "snapshot": "7ecb72a85c690c845e4464fc791960ed6a5aeb3e1cbdd1106ffdabe4d8d4eaf6",
+  "cases": [
+    {
+      "id": "scout_final_clean",
+      "agent": "scout",
+      "frame": 20,
+      "expected": "completed",
+      "observed": "completed",
+      "passed": true,
+      "latency_ms_stub": 4.13
+    },
+    {
+      "id": "scout_empty_frame",
+      "agent": "scout",
+      "frame": 0,
+      "expected": "completed",
+      "observed": "completed",
+      "passed": true,
+      "latency_ms_stub": 1.29
+    },
+    {
+      "id": "scout_partial_frame",
+      "agent": "scout",
+      "frame": 18,
+      "expected": "completed",
+      "observed": "completed",
+      "passed": true,
+      "latency_ms_stub": 2.59
+    },
+    {
+      "id": "trace_delayed_order",
+      "agent": "trace",
+      "frame": 20,
+      "expected": "completed",
+      "observed": "completed",
+      "passed": true,
+      "latency_ms_stub": 1.86
+    },
+    {
+      "id": "trace_on_time_order",
+      "agent": "trace",
+      "frame": 20,
+      "expected": "completed",
+      "observed": "completed",
+      "passed": true,
+      "latency_ms_stub": 2.09
+    },
+    {
+      "id": "scout_forged_999",
+      "agent": "scout",
+      "frame": 20,
+      "expected": "TOOL_RESULT_MISMATCH",
+      "observed": "TOOL_RESULT_MISMATCH",
+      "passed": true,
+      "latency_ms_stub": 2.26
+    },
+    {
+      "id": "scout_forged_source",
+      "agent": "scout",
+      "frame": 20,
+      "expected": "TOOL_RESULT_MISMATCH",
+      "observed": "TOOL_RESULT_MISMATCH",
+      "passed": true,
+      "latency_ms_stub": 2.05
+    },
+    {
+      "id": "scout_forged_status",
+      "agent": "scout",
+      "frame": 20,
+      "expected": "TOOL_RESULT_MISMATCH",
+      "observed": "TOOL_RESULT_MISMATCH",
+      "passed": true,
+      "latency_ms_stub": 1.37
+    },
+    {
+      "id": "scout_false_explanation",
+      "agent": "scout",
+      "frame": 20,
+      "expected": "TOOL_RESULT_MISMATCH",
+      "observed": "TOOL_RESULT_MISMATCH",
+      "passed": true,
+      "latency_ms_stub": 2.52
+    },
+    {
+      "id": "scout_unexpected_field",
+      "agent": "scout",
+      "frame": 20,
+      "expected": "TOOL_RESULT_MISMATCH",
+      "observed": "TOOL_RESULT_MISMATCH",
+      "passed": true,
+      "latency_ms_stub": 2.18
+    },
+    {
+      "id": "scout_invented_alert",
+      "agent": "scout",
+      "frame": 20,
+      "expected": "UNSUPPORTED_REFERENCE",
+      "observed": "UNSUPPORTED_REFERENCE",
+      "passed": true,
+      "latency_ms_stub": 2.61
+    },
+    {
+      "id": "scout_duplicate_alert",
+      "agent": "scout",
+      "frame": 20,
+      "expected": "UNSUPPORTED_REFERENCE",
+      "observed": "UNSUPPORTED_REFERENCE",
+      "passed": true,
+      "latency_ms_stub": 2.58
+    },
+    {
+      "id": "scout_missing_metric_focus",
+      "agent": "scout",
+      "frame": 0,
+      "expected": "UNSUPPORTED_EXPLANATION",
+      "observed": "UNSUPPORTED_EXPLANATION",
+      "passed": true,
+      "latency_ms_stub": 1.14
+    },
+    {
+      "id": "scout_invalid_json",
+      "agent": "scout",
+      "frame": 20,
+      "expected": "INVALID_MODEL_RESPONSE",
+      "observed": "INVALID_MODEL_RESPONSE",
+      "passed": true,
+      "latency_ms_stub": 2.72
+    },
+    {
+      "id": "scout_forbidden_tool",
+      "agent": "scout",
+      "frame": 20,
+      "expected": "INVALID_MODEL_RESPONSE",
+      "observed": "INVALID_MODEL_RESPONSE",
+      "passed": true,
+      "latency_ms_stub": 0.46
+    },
+    {
+      "id": "trace_forged_999",
+      "agent": "trace",
+      "frame": 20,
+      "expected": "TOOL_RESULT_MISMATCH",
+      "observed": "TOOL_RESULT_MISMATCH",
+      "passed": true,
+      "latency_ms_stub": 0.96
+    },
+    {
+      "id": "trace_forged_source",
+      "agent": "trace",
+      "frame": 20,
+      "expected": "TOOL_RESULT_MISMATCH",
+      "observed": "TOOL_RESULT_MISMATCH",
+      "passed": true,
+      "latency_ms_stub": 0.88
+    },
+    {
+      "id": "trace_invented_fact",
+      "agent": "trace",
+      "frame": 20,
+      "expected": "UNSUPPORTED_REFERENCE",
+      "observed": "UNSUPPORTED_REFERENCE",
+      "passed": true,
+      "latency_ms_stub": 1.43
+    },
+    {
+      "id": "trace_duplicate_fact",
+      "agent": "trace",
+      "frame": 20,
+      "expected": "UNSUPPORTED_REFERENCE",
+      "observed": "UNSUPPORTED_REFERENCE",
+      "passed": true,
+      "latency_ms_stub": 1.47
+    },
+    {
+      "id": "trace_without_state",
+      "agent": "trace",
+      "frame": 20,
+      "expected": "MISSING_EVIDENCE",
+      "observed": "MISSING_EVIDENCE",
+      "passed": true,
+      "latency_ms_stub": 1.29
+    }
+  ],
+  "counts": {
+    "total": 20,
+    "passed": 20,
+    "rejected_adversarial": 15,
+    "adversarial_total": 15
+  }
+}

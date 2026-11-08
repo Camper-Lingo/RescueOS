@@ -1,6 +1,6 @@
 # Gabarito manual — demo_events.jsonl
 
-**Tudo abaixo é fictício.** Os eventos descrevem um cenário de teste, não a operação do iFood.
+**Tudo abaixo é fictício.** Os eventos descrevem um cenário de teste, não uma operação real.
 
 - Quantidade de pedidos distintos criados: **3**.
 - `ord-1001`: status **DELIVERED**; entrega **18:43**, prazo **18:48**; antecedência **5 minutos**.
@@ -12,7 +12,7 @@
 - Total de pedidos cancelados: **1**.
 - Total de pedidos entregues no prazo: **1**.
 
-## Testes adicionais que o Codex deve criar
+## Casos sugeridos de regressÃ£o
 
 1. Inserir novamente um evento com mesmo ID/conteúdo: saída idêntica.
 2. Reordenar as linhas: saída de métricas e status idêntica.

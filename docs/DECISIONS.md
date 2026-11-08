@@ -1,5 +1,7 @@
 # Registro de decisões (ADRs simples)
 
+> **Historical engineering notes:** This file records an earlier development stage. For the current product, deployment boundaries, and evaluation results, see the root README and docs/AI_ENGINEERING_CASE.md.
+
 ## ADR-008 — Etapa 5A: snapshot HTTP e projeção temporal 3D
 
 **Data:** 2026-10-30. Implementado, aguardando revisão independente.
@@ -55,7 +57,7 @@ com ponteiro/manifesto transacional e recuperação testada.
 **Validação:** testes HTTP/modelos/cópias/determinismo/qualidade/None/racionais,
 testes de cursor/projeção/cliente, build strict e navegador real Chrome/Windows.
 WebGL dos testes usa SwiftShader; sem garantia de FPS ou homologação de outras
-GPUs/browsers. Roteiro, versões e resultados em CONTROL_TOWER.md e HANDOFF.md.
+GPUs/browsers. Roteiro, versões e resultados em CONTROL_TOWER.md.
 
 ### Correção da Code Review #005 — 2026-10-30
 

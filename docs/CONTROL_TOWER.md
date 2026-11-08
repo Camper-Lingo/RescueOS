@@ -1,5 +1,7 @@
 # Etapas 5A/5B — The Living Restaurant
 
+> **Historical engineering notes:** This file records an earlier development stage. For the current product, deployment boundaries, and evaluation results, see the root README and docs/AI_ENGINEERING_CASE.md.
+
 Etapa 5A aprovada em `2a66164`; Etapa 5B aprovada em `4046192`; Etapa 6A aprovada
 em `af983ee`. A Etapa 6B acrescenta Scout e exploração guiada, aguardando revisão
 #008. Veja [TRACE.md](TRACE.md) e [SCOUT.md](SCOUT.md). Núcleo das Etapas 1–4,

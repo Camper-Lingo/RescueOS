@@ -1,5 +1,7 @@
 # Etapa 6A — Trace: investigação local de evidências
 
+> **Historical engineering notes:** This file records an earlier development stage. For the current product, deployment boundaries, and evaluation results, see the root README and docs/AI_ENGINEERING_CASE.md.
+
 Implementado para Code Review #007 em 2026-10-31, sobre a Etapa 5B aprovada
 (`4046192`). Ponytail FULL; nenhuma dependência nova, instalação, commit ou push.
 Somente Trace utiliza LLM; os outros quatro mascotes continuam demonstrativos.

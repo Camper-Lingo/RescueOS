@@ -1,84 +1,68 @@
-# Arquitetura evolutiva — RescueOS
+# RescueOS — Current Architecture
 
-## Princípio
+RescueOS is a simulation-first engineering prototype. It contains a browser-based *living restaurant*, a separate historical-event investigation workflow, and an offline AI Lab. These paths share a domain, but they do **not** form a single continuously learning production system.
 
-**Uma fonte comum de eventos; três módulos especializados.** Não criar três sistemas com bases independentes: isso produziria inconsistências e retrabalho.
+## 1. Living restaurant (default browser view)
+
+```mermaid
+flowchart LR
+    S[Seeded TypeScript simulation] --> O[Synthetic orders and operations]
+    O --> UI[React / React Three Fiber]
+    O --> P[Operational panels and night summary]
+    O --> X[AI Lab dataset exporter]
+```
+
+- `frontend/src/simulation/`: synthetic orders, demand scenarios, crew, couriers, and end-of-night state.
+- `frontend/src/app/`: browser experience and scenario controls.
+- `frontend/src/scene/`: interactive 3D restaurant and characters.
+- Characters, courier movements, and simulated operational repairs follow application rules; they are **not** self-training LLM agents.
+- This mode is the public static frontend demo. It requires neither Ollama nor a Python backend.
+
+## 2. Historical event replay and read-only agents
 
 ```mermaid
 flowchart TD
-  S[Simulador sintético] --> E[Ingestão e validação de eventos]
-  E --> L[Log append-only + deduplicação]
-  L --> P[Projeções de pedidos e métricas]
-  P --> U[SurgeShield: sobrecarga e cenários]
-  P --> R[RescueOps: riscos e intervenções]
-  L --> F[FairTrace: cronologia e evidências]
-  U --> H[Control Tower]
-  R --> A[Aprovação humana]
-  A --> W[Workflow n8n de ações simuladas]
-  W --> L
-  F --> H
-  A --> H
+    J[Canonical synthetic JSONL fixture] --> I[Python ingestion and validation]
+    I --> R[Deterministic order replay]
+    R --> M[Evidence-linked metrics]
+    M --> A[Read-only FastAPI snapshot]
+    A --> H[Historical React explorer: 3D / 2D fallback]
+    A --> T[Bounded read-only agent tools]
+    T --> G[Scout and Trace / optional local Qwen3:4B]
+    G --> V[Independent validation of tools and evidence]
+    V --> H
 ```
 
-## Camadas
+- `rescueos/` implements contracts, ingestion, replay, metrics, and reporting. The canonical state and metrics are computed deterministically.
+- `rescueos/tower/` serves a controlled historical snapshot through FastAPI and implements Scout/Trace tools and validators.
+- The history view runs separately at `?mode=history` and requires the local Python backend for canonical evidence.
+- Scout selects supported alerts; Trace investigates a selected order. Model output cannot forge canonical metrics or evidence. Calls to the local model are opt-in rather than automatic.
+- Incomplete or contradictory records retain their uncertainty. The 2D historical fallback preserves access if WebGL is not available.
 
-1. **Dados/eventos:** contrato versionado + armazenamento reproduzível; inicialmente JSONL, depois SQLite.
-2. **Domínio determinístico:** estados, validação, atraso, fila, agregados e regras de risco.
-3. **Simulação:** gera cenários controlados e replay com semente fixa; intervenção tem regras explícitas.
-4. **Integrações:** API REST e n8n. MCP fornece ferramentas restritas a agentes (nunca SQL arbitrário).
-5. **IA:** investigador lê evidências e propõe explicações; revisor aponta inconsistências; nenhuma ação crítica sem aprovação do sistema.
-6. **Interface:** dashboard, eventos, replay, propostas, decisões e relatórios.
+## 3. Offline AI Lab
 
-## Contrato de evento v0.1
-
-Cada linha é um objeto JSON com:
-
-```json
-{
-  "event_id": "evt-001",
-  "order_id": "ord-1001",
-  "restaurant_id": "rest-01",
-  "occurred_at": "2026-10-29T18:01:00-03:00",
-  "type": "ORDER_CREATED",
-  "data": {
-    "promised_ready_at": "2026-10-29T18:20:00-03:00",
-    "promised_delivery_at": "2026-10-29T18:48:00-03:00"
-  }
-}
+```mermaid
+flowchart TD
+    S[Seeded TypeScript living simulation] --> D[Export synthetic nights]
+    D --> Split[Split by simulation seed]
+    Split --> Train[Train / fixed-rule baseline]
+    Train --> E[Held-out evaluation and error analysis]
+    H[Historical synthetic fixture] --> B[Scout / Trace agent evaluations]
+    B --> C[Controlled-provider adversarial tests]
+    B --> Q[Optional small real-model evaluation]
 ```
 
-Eventos de restaurante que não pertencem a um pedido podem ter `order_id: null`, como `RESTAURANT_CAPACITY_UPDATED` e `PROMOTION_STARTED`. As propriedades específicas ficam em `data`. Os eventos devem ser validados por tipo; não aceitar qualquer campo arbitrário como instrução executável.
+- `ai_lab/export_nights.mjs` creates datasets based on the TypeScript simulator.
+- `ai_lab/train.py` trains and evaluates a scikit-learn logistic-regression delivery-delay model; this is an **offline** operation.
+- Agent reliability checks use controlled responses; separate, limited Qwen tests are explicitly labeled as real-model runs.
+- The ML dataset comes from generated living nights, while the Scout/Trace tests refer to a distinct historical synthetic fixture. Do not conflate them.
+- Read `docs/AI_ENGINEERING_CASE.md` and the AI Lab README files for measured outcomes, datasets, reproducibility, failure modes, and limitations.
 
-Tipos iniciais: `ORDER_CREATED`, `KITCHEN_STARTED`, `KITCHEN_READY`, `COURIER_ASSIGNED`, `COURIER_ARRIVED`, `PICKED_UP`, `DELIVERED`, `ORDER_CANCELLED`, `RESTAURANT_CAPACITY_UPDATED`, `PROMOTION_STARTED`.
+## 4. Boundaries and potential evolution
 
-## Reconstrução e integridade
+- The publicly hosted demo is a static frontend simulation, not a production restaurant integration.
+- There is no automatic retraining each time a night runs, no ingestion of live restaurant data, and no restaurant-specific deployed predictive model.
+- Future integration with actual restaurant operations would require explicit data contracts, privacy and access controls, durable ingestion, quality checks, a retraining schedule, independent validation, monitoring, and safe model deployment.
+- Measurements in the repository are from controlled synthetic scenarios; they do not establish business impact on real restaurants.
 
-- Eventos podem chegar fora de ordem; ordene por `occurred_at` e `event_id` para reproduzir a cronologia.
-- Deduplicação pelo mesmo `event_id`. Se o mesmo ID vier com conteúdo diferente, tratar como conflito, não apagar silenciosamente.
-- Eventos sem pedido criado vão para lista de inconsistências; não inventar pedidos.
-- Estados terminais: entregue/cancelado. Eventos posteriores incompatíveis devem ser destacados para revisão.
-- Eventos devem poder ser reproduzidos sem efeitos externos.
-- Cada relatório aponta `event_id` e timestamp de origem das afirmações importantes.
-
-## APIs futuras (não implementar no MVP 0)
-
-- `POST /events` — ingestão com idempotência.
-- `GET /orders` — status e filtros.
-- `GET /orders/{id}/timeline` — evidências.
-- `GET /risks` — alertas rastreáveis.
-- `POST /simulations` — execução identificada com semente fixa.
-- `POST /proposals/{id}/approve` — aprovação autenticada e validada no backend.
-- `GET /evaluations` — resultados de testes e comparações.
-
-## Ferramentas MCP futuras (não implementar no MVP 0)
-
-`get_order_timeline`, `get_capacity_snapshot`, `list_at_risk_orders`, `get_simulation_comparison` (somente leitura). Escritas e intervenções não são permitidas pelo MCP inicial.
-
-## Política para IA
-
-- Números e estados são produzidos por código determinístico.
-- IA resume e investiga fontes, não inventa métricas nem envia mensagens reais.
-- O revisor recebe evidências e proposta, não apenas a conclusão do primeiro agente.
-- Prompts não são mecanismo de permissão: backend impõe políticas.
-- Limites de tempo, passos e custos registrados quando houver modelo em runtime.
-- Sem dados pessoais ou credenciais reais nas fixtures.
+See also [`README.md`](../README.md), [`AI_ENGINEERING_CASE.md`](AI_ENGINEERING_CASE.md), [`SCOUT.md`](SCOUT.md), [`TRACE.md`](TRACE.md), and [`DECISIONS.md`](DECISIONS.md).

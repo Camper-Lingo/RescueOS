@@ -21,4 +21,4 @@ Outputs em `ai_lab/out/reliability-report.md` e `ai_lab/out/reliability-results.
 - Cada caso define antecipadamente o resultado esperado: aprovação ou rejeição com código específico.
 - O programa sai com código de erro se algum caso falhar.
 
-**Limitações:** esta rodada não mede taxa de acerto, F1, alucinações ou latência de um LLM real, nem representa pedidos reais do iFood. Para isso, a próxima etapa precisará testar uma amostra com modelo instalado, com autorização manual e temperatura monitorada. Os casos aqui se apoiam na fixture histórica, **não** no ambiente simulado de noites aleatórias do frontend; essa integração é uma evolução separada.
+**Limitações:** esta rodada não mede taxa de acerto, F1, alucinações ou latência de um LLM real, nem representa pedidos reais de restaurantes. Para isso, a próxima etapa precisará testar uma amostra com modelo instalado, com autorização manual e temperatura monitorada. Os casos aqui se apoiam na fixture histórica, **não** no ambiente simulado de noites aleatórias do frontend; essa integração é uma evolução separada.

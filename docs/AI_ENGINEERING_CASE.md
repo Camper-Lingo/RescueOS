@@ -2,7 +2,7 @@
 
 **Machine learning · LLM agents · Tool integrity · Evaluation · Synthetic simulation**
 
-> **Resumo:** Criei um restaurante 3D com uma operação de delivery sintética e reproduzível, e usei essa simulação como laboratório para prever atrasos e testar a confiabilidade de agentes de IA. O objetivo central é separar **inferências de modelos** de **fatos verificáveis**. Os experimentos abaixo são locais e sintéticos; não medem desempenho em operações reais do iFood.
+> **Resumo:** Criei um restaurante 3D com uma operação de delivery sintética e reproduzível, e usei essa simulação como laboratório para prever atrasos e testar a confiabilidade de agentes de IA. O objetivo central é separar **inferências de modelos** de **fatos verificáveis**. Os experimentos abaixo são locais e sintéticos; não medem desempenho em operações reais de restaurantes.
 
 ## 1. O problema de engenharia
 

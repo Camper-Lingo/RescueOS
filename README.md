@@ -160,4 +160,4 @@ See [the detailed case study](docs/AI_ENGINEERING_CASE.md) for numerical results
 - **Known ML weaknesses:** rare-event scenarios, unobserved pending outcomes, calibration, and out-of-distribution generalization remain open questions.
 - **Local-first execution:** development servers bind to loopback. No publicly hosted demo is claimed here.
 
-**Built as an independent AI Engineering learning and portfolio project.** Not affiliated with iFood or any delivery platform.
+**Built as an independent AI Engineering learning and portfolio project.** Not affiliated with any delivery platform.

@@ -1,5 +1,7 @@
 # Etapa 6B — Scout e exploração de incidentes
 
+> **Historical engineering notes:** This file records an earlier development stage. For the current product, deployment boundaries, and evaluation results, see the root README and docs/AI_ENGINEERING_CASE.md.
+
 Implementada sobre a Etapa 6A aprovada no commit `af983ee`, aguardando Code Review
 #008. Ponytail FULL: reutilização do executor, provedor, validação canônica e
 transporte do Trace; sem dependências novas ou alteração dos cálculos do núcleo.

@@ -194,6 +194,6 @@ export default function LiveExperience() {
           onClick={() => selectOrder(order.id)}><span>{order.id}</span><small>{LIVE_STATUS_LABELS[order.status]}</small></button>)}
         {!sim.orders.length && <p>Aguardando novos pedidos.</p>}</div></section>
     </aside></div>
-    <p className="live-disclaimer">Simulação fictícia baseada em regras, sem conexão com iFood ou pedidos reais. Não altera as evidências históricas. Os cinco monstrinhos reagem por regras; Scout sinaliza ocorrências, Trace lê registros e Fixer faz reparos simulados. Nenhuma IA/LLM é executada neste modo; o histórico auditado continua preservado no código.</p>
+    <p className="live-disclaimer">Simulação fictícia baseada em regras, sem conexão com plataformas de delivery ou pedidos reais. Não altera as evidências históricas. Os cinco monstrinhos reagem por regras; Scout sinaliza ocorrências, Trace lê registros e Fixer faz reparos simulados. Nenhuma IA/LLM é executada neste modo; o histórico auditado continua preservado no código.</p>
   </>;
 }
